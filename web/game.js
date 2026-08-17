@@ -1,29 +1,151 @@
-import { Peer } from 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/+esm';
+import { bindPeer } from '/munchkin/web/p2p.js';
+import { connectToPeer } from '/munchkin/web/p2p.js';
+import { sendData } from '/munchkin/web/p2p.js';
+import { getPeerNames } from '/munchkin/web/p2p.js';
+import { getMyPeerName } from '/munchkin/web/p2p.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  const lobbyEl = document.getElementById('lobby');
+  const loginDiv = document.getElementById('login');
+  const peerInput = document.getElementById('peer-input');
+  const lobbyDiv = document.getElementById('lobby');
   const roomInput = document.getElementById('room-input');
-  const btnCreate = document.getElementById('btn-create');
-  const btnJoin = document.getElementById('btn-join');
-
-  const myIdEl = document.getElementById('my-id');
-  const statusEl = document.getElementById('status');
+  const playersUl = document.getElementById('player-list');
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
 
-  let peer = null;
+  let roomName = null;
+  let peerName = null;
 
-  // Connessioni P2P dirette attive con tutti gli altri giocatori
-  const directConnections = {};
+  function hideLogin() {
+    loginDiv.style.display = 'none';
+  }
+
+  function showLogin() {
+    login.style.display = 'block';
+    peerInput.focus();
+  }
+
+  function hideLobby() {
+    lobbyDiv.style.display = 'none';
+  }
+
+  function showLobby() {
+    lobbyDiv.style.display = 'block';
+    roomInput.focus();
+  }
+
+  function hideGame() {
+    canvas.style.display = 'none';
+  }
+
+  function showGame() {
+    canvas.style.display = 'block';
+  }
+
+  peerInput.addEventListener('keydown', (evt) => {
+    if (evt.keyCode === 13) {
+      peerName = peerInput.value.trim();
+      if (peerName.length == 0) {
+        peerInput.value = "";
+        return;
+      }
+      hideLogin();
+      bindPeer(peerName);
+    }
+  });
+
+  roomInput.addEventListener('keydown', (evt) => {
+    if (evt.keyCode === 13) {
+      hideLobby();
+      showGame();
+      roomName = roomInput.value.trim();
+      roomName = roomName.length == 0 ? null : roomName;
+      if (roomName)
+        connectToPeer(roomName);
+      else
+        console.log("No room name provided");
+    }
+  });
+
+  window.addEventListener('onPeerCreated', function(evt) {
+    showLobby();
+    showGame();
+    const li = document.createElement("li");
+    li.innerText = evt.detail.friendlyName;
+    li.style.fontWeight = "bold";
+    playersUl.appendChild(li);
+  });
+
+  window.addEventListener('onErrorPeerAlreadyExists', function(evt) {
+    showLogin();
+    alert('Peer name "' + evt.detail.friendlyName + '" already exists, choose another one');
+  });
+
+  window.addEventListener('onErrorPeerNotFound', function(evt) {
+    hideGame();
+    showLobby();
+    alert('Room "' + evt.detail.friendlyName + '" not found, choose another one');
+  });
+
+  window.addEventListener('onErrorPeerTimeoutOutgoingConnection', function(evt) {
+    hideGame();
+    showLobby();
+    alert('Connection to room "' + evt.detail.friendlyName + '" timed out, try again');
+  });
+
+  window.addEventListener('onPeerNewConnection', function(evt) {
+    const li = document.createElement("li");
+    li.innerText = evt.detail.friendlyName;
+    playersUl.appendChild(li);
+    sendData(evt.detail.friendlyName, { type: "REQ_PEER_LIST" });
+  });
+
+  window.addEventListener('onPeerCloseConnection', function(evt) {
+    const lis = playersUl.children;
+    for (let i = 0; i < lis.length; i++) {
+      const li = lis[i];
+      if (li.innerText === evt.detail.friendlyName) {
+        li.remove();
+        return;
+      }
+    }
+  });
+
+  window.addEventListener('onPeerDataReceived', function(evt) {
+    const envelope = evt.detail;
+    const data = envelope.data;
+    const type = data.type;
+    switch (type) {
+      case "PING":
+        // TODO
+        break;
+      case "PONG":
+        // TODO
+        break;
+      case "REQ_PEER_LIST":
+        sendData(envelope.friendlyName, { type: "PEER_LIST", peers: getPeerNames() });
+        break;
+      case "PEER_LIST":
+        const myPeerName = getMyPeerName();
+        const peerNames = getPeerNames();
+        data.peers.forEach((peerName) => {
+          if (peerName !== myPeerName && !peerNames.includes(peerName))
+            connectToPeer(peerName);
+        });
+        break;
+      default:
+        console.error('Unknown "' + type + '" payload type');
+    }
+  });
+
+  showLogin();
 
   // Posizioni di tutti i giocatori { peerId: { id, x, y, color } }
   const players = {};
 
-  const ROOM_PREFIX = 'mio-gioco-p2p-mesh-v2-';
-
   // Genera un colore univoco per questo client
-  const myColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+  const myColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'); // TODO use player's name to generate the color
 
   // Helper per inizializzare il proprio payload locale prima di inviarlo
   function getMyPayload(x = 100, y = 100) {
@@ -35,139 +157,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // 1. CREA STANZA (HOST INIZIALE)
-  btnCreate.addEventListener('click', () => {
-    let roomId = roomInput.value.trim() || 'stanza-' + Math.random().toString(36).substring(2, 7);
-    const fullRoomId = ROOM_PREFIX + roomId;
-
-    statusEl.innerText = `Creazione stanza "${roomId}" in corso...`;
-
-    if (peer) peer.destroy();
-    peer = new Peer(fullRoomId);
-
-    peer.on('open', (id) => {
-      // Inizializza la posizione locale standard per il giocatore
-      players[id] = getMyPayload(150, 150);
-
-      hideLobby();
-      myIdEl.innerText = `${id.replace(ROOM_PREFIX, '')} (HOST INIZIALE)`;
-      statusEl.innerText = `Stanza creata! In attesa di altri giocatori...`;
-      statusEl.style.color = '#007acc';
-      canvas.style.display = 'block';
-      draw();
-    });
-
-    peer.on('connection', (conn) => {
-      setupConnection(conn);
-    });
-
-    peer.on('error', (err) => {
-      if (err.type === 'unavailable-id') {
-        statusEl.innerText = `La stanza "${roomId}" esiste già. Scegli un altro nome o fai "Unisciti".`;
-        statusEl.style.color = 'red';
-        showLobby();
-      }
-    });
-  });
-
-  // 2. UNISCITI A STANZA (GUEST)
-  btnJoin.addEventListener('click', () => {
-    const roomId = roomInput.value.trim();
-    if (!roomId) return alert('Inserisci il nome della stanza!');
-
-    const fullRoomId = ROOM_PREFIX + roomId;
-    statusEl.innerText = `Connessione alla stanza "${roomId}"...`;
-
-    if (peer) peer.destroy();
-    peer = new Peer();
-
-    peer.on('open', (myId) => {
-      // Inizializza la posizione locale standard per il giocatore
-      players[myId] = getMyPayload(200, 200);
-
-      hideLobby();
-      myIdEl.innerText = `${myId} (GIOCATORE)`;
-
-      // Ci connettiamo prima all'Host iniziale per entrare nella rete Mesh
-      const initialConn = peer.connect(fullRoomId);
-      setupConnection(initialConn);
-    });
-
-    peer.on('connection', (conn) => {
-      // Connessioni in arrivo da altri Guest della rete Mesh
-      setupConnection(conn);
-    });
-
-    peer.on('error', () => {
-      statusEl.innerText = `Impossibile trovare la stanza "${roomId}".`;
-      statusEl.style.color = 'red';
-      showLobby();
-    });
-  });
-
-  // --- GESTIONE DELLE CONNESSIONI DIRETTE P2P ---
-  function setupConnection(conn) {
-    conn.on('open', () => {
-      directConnections[conn.peer] = conn;
-
-      // Mostriamo il canvas a chiunque si connetta
-      canvas.style.display = 'block';
-
-      // Invia la nostra posizione iniziale al nuovo partecipante
-      if (peer && players[peer.id]) {
-        conn.send(players[peer.id]);
-      }
-
-      // Invia l'elenco dei nodi noti per stabilire la Mesh
-      const knownPeerIds = Object.keys(directConnections);
-      conn.send({ type: 'PEER_LIST', peers: knownPeerIds });
-
-      updateStatus();
-    });
-
-    conn.on('data', (data) => {
-      // Caso A: Riceviamo l'elenco dei peer della stanza
-      if (data.type === 'PEER_LIST') {
-        data.peers.forEach((peerId) => {
-          if (peerId !== peer.id && !directConnections[peerId]) {
-            const newConn = peer.connect(peerId);
-            setupConnection(newConn);
-          }
-        });
-        return;
-      }
-
-      // Caso B: Riceviamo l'aggiornamento della posizione
-      players[data.id] = data;
-      draw();
-    });
-
-    conn.on('close', () => {
-      delete directConnections[conn.peer];
-      delete players[conn.peer];
-      updateStatus();
-      draw();
-    });
-  }
-
-  // BROADCAST DIRETTO A TUTTI I PEER
-  function sendToAllPeers(payload) {
-    Object.values(directConnections).forEach((conn) => {
-      if (conn.open) {
-        conn.send(payload);
-      }
-    });
-  }
-
   // --- LOGICA INPUT & CANVAS ---
-  canvas.addEventListener('mousemove', (event) => {
+  canvas.addEventListener('mousemove', (evt) => {
     if (!peer || !players[peer.id]) return;
 
     const rect = canvas.getBoundingClientRect();
     const myPosPayload = {
       id: peer.id,
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top,
       color: myColor
     };
 
@@ -195,12 +193,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function updateStatus() {
-    const totalCount = Object.keys(directConnections).length + 1;
-    statusEl.innerText = `Connessioni dirette P2P: ${totalCount - 1} | Giocatori totali: ${totalCount}`;
-    statusEl.style.color = 'green';
-  }
-
-  function hideLobby() { lobbyEl.style.display = 'none'; }
-  function showLobby() { lobbyEl.style.display = 'block'; canvas.style.display = 'none'; }
 });

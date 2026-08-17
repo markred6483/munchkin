@@ -8,26 +8,27 @@
     <!-- Foglio di stile CSS esterno -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Script JS nel Head (type="module" non blocca il rendering del DOM) -->
+    <script type="module" src="p2p.js"></script>
     <script type="module" src="game.js"></script>
 </head>
 <body>
 
 <h1>Demo P2P Multi-Giocatore</h1>
 
-<!-- SEZIONE LOBBY -->
-<div id="lobby" class="lobby">
-    <input type="text" id="room-input" placeholder="Inserisci il nome della stanza..." />
-    <br>
-    <button id="btn-create">Crea Nuova Stanza</button>
-    <button id="btn-join">Unisciti alla Stanza</button>
+<div id="login" class="form">
+    <label for="peer-input">Peer name</label>
+    <input type="text" id="peer-input" placeholder="Your name" title="Your name" />
 </div>
 
-<!-- SEZIONE GIOCO -->
-<p>Il tuo ID: <span id="my-id">Scollegato</span></p>
-<p>Stato: <span id="status">Scegli o crea una stanza per iniziare</span></p>
+<div id="lobby" class="form">
+    <label for="room-input">Room name</label>
+    <input type="text" id="room-input" placeholder="Room name" title="Name of the peer to connect to - Leave blank to idle" />
+</div>
 
-<canvas id="canvas" width="600" height="400"></canvas>
+<div id="game-container">
+  <ul id="player-list"></ul>
+  <canvas id="canvas" width="600" height="400"></canvas>
+</div>
 
 </body>
 </html>
