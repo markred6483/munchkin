@@ -18,40 +18,10 @@
     <input type="text" id="peer-input" placeholder="Your name" title="Your name" />
 </div>
 
-<div id="lobby" class="form">
-    <label for="room-input">Room name</label>
-    <input type="text" id="room-input" placeholder="Room name" title="Name of the peer to connect to - Leave blank to idle" />
-</div>
-
 <div id="game-container">
   <ul id="player-list"></ul>
   <canvas id="canvas" width="600" height="400"></canvas>
 </div>
-<script type="module">
-    import { ChatWidget } from './chat.js';
 
-    // Inizializzazione Widget
-    const chat = new ChatWidget();
-
-    // Dati di prova interlocutori
-    chat.addUser({ name: 'Mario Rossi', online: true });
-    chat.addUser({ name: 'Luigi Verdi', online: false });
-    chat.addUser({ name: 'Anna Bianchi', online: true });
-
-    // Dati di prova cronologia messaggi
-    chat.receiveMessage({
-      timestamp: '10:14',
-      sender: 'Mario Rossi',
-      recipient: 'all',
-      text: 'Ciao a tutti! Benvenuti nella chat.'
-    });
-
-    chat.receiveMessage({
-      timestamp: '10:15',
-      sender: 'Luigi Verdi',
-      recipient: 'Mario Rossi',
-      text: 'Ciao Mario, ti rispondo in privato.'
-    });
-</script>
 </body>
 </html>

@@ -22,7 +22,7 @@
   color: var(--chat-text);
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.4);
   z-index: 999999;
-  display: flex;
+  display: none;
   flex-direction: column;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;

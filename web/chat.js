@@ -4,7 +4,7 @@ export class ChatWidget extends EventTarget {
     super(); // Initialize EventTarget
 
     this.target = options.target || document.body;
-    this.activeRecipient = ChatWidget.MODE_BROADCAST;
+    this.activeRecipient = ChatWidget.BROADCAST;
     this.isOpen = true;
 
     // DOM elements references
@@ -155,9 +155,9 @@ export class ChatWidget extends EventTarget {
     });
 
     // Mode change
-    this._setRecipient(ChatWidget.MODE_BROADCAST);
+    this._setRecipient(ChatWidget.BROADCAST);
     this.modeLabelEl.addEventListener('click', (e) => {
-      this._setRecipient(ChatWidget.MODE_BROADCAST);
+      this._setRecipient(ChatWidget.BROADCAST);
     });
   }
 
@@ -242,10 +242,10 @@ export class ChatWidget extends EventTarget {
 
   _setRecipient(name) {
     this.activeRecipient = name;
-    if (name != ChatWidget.MODE_BROADCAST)
+    if (name != ChatWidget.BROADCAST)
       this.modeLabelEl.innerText = `Whisper: ${name}`;
     else
-      this.modeLabelEl.innerText = ChatWidget.MODE_BROADCAST.toString();
+      this.modeLabelEl.innerText = ChatWidget.BROADCAST.toString();
     this.dispatchEvent(new CustomEvent('recipientchange', {
       detail: { recipient: name }
     }));
@@ -263,6 +263,7 @@ export class ChatWidget extends EventTarget {
   }
 
   _addMessage(msg) {
+    // TODO
     const isRecipientMe = msg.recipient === ChatWidget.ME;
     const isSenderMe = msg.sender === ChatWidget.SENDER;
     msg.recipient = isRecipientMe ? ChatWidget.ME.toString() : msg.recipient;
@@ -284,6 +285,14 @@ export class ChatWidget extends EventTarget {
     this.historyListEl.parentElement.scrollTop = this.historyListEl.parentElement.scrollHeight;
   }
 
+  _getUserLi(username) {
+    return this.userListEl.querySelector(`[data-username="${username}"]`);
+  }
+
+  _dispatchEvent(evtName, data) { // TODO use this
+    this.dispatchEvent(new CustomEvent(evtName, { detail: data }));
+  }
+
   /* --- API Pubbliche / Metodi per aggiornare lo Stato del Widget --- */
 
   receiveMessage(envelope) {
@@ -291,6 +300,7 @@ export class ChatWidget extends EventTarget {
   }
 
   addUser(user) {
+    if (this._getUserLi(user.name)) return;
     const li = document.createElement('li');
     li.className = 'chat-list-item chat-user-item';
     li.dataset.username = user.name;
@@ -302,11 +312,23 @@ export class ChatWidget extends EventTarget {
   }
 
   removeUser(username) {
-    this.userListEl.querySelector(`[data-username="${username}"]`).remove();
+    this._getUserLi(username).remove();
   }
 
   removeAllUsers() {
     this.userListEl.innerHTML = "";
+  }
+
+  show() {
+    this.container.style.display = 'flex';
+  }
+
+  hide() {
+    this.container.style.display = 'none';
+  }
+
+  setMe(username) {
+    // TODO
   }
 
 }
@@ -318,7 +340,7 @@ Object.defineProperty(ChatWidget, 'ME', {
     configurable : false
 });
 
-Object.defineProperty(ChatWidget, 'MODE_BROADCAST', {
+Object.defineProperty(ChatWidget, 'BROADCAST', {
     value: { toString: () => 'Broadcast' },
     writable : false,
     enumerable : true,

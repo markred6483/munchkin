@@ -2,9 +2,9 @@ import { Peer } from 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm';
 
 
 const ROOM_PREFIX = 'munchkin-with-friends-';
-var peer = null;
+var peer = null; // https://peerjs.com/client/api/peer
 var myPeerName = null;
-const peers = {};
+const peers = {}; // https://peerjs.com/client/api/data-connection
 const pendingPeers = {};
 
 export function bindPeer(peerName) {
@@ -56,6 +56,11 @@ export function bindPeer(peerName) {
 export function connectToPeer(peerName) {
   if (peerName == null)
     return;
+  if (peers[peerName]) {
+    if (peers[peerName].open)
+      return;
+    delete peers[peerName];
+  }
   const peerFullName = ROOM_PREFIX + peerName;
   const initialConn = peer.connect(peerFullName);
   const timeout = setTimeout(
@@ -104,11 +109,14 @@ function setupConnectionInternal(conn) {
 }
 
 export function broadcastData(data) {
-  Object.values(directConnections).forEach((conn) => sendDataInternal(conn, data));
+  if (!data["timestamp"])
+    data["timestamp"] = Date.now();
+  Object.values(peers).forEach((conn) => sendDataInternal(conn, data));
 }
 
 export function sendData(peerName, data) {
-  data["timestamp"] = Date.now();
+  if (!data["timestamp"])
+    data["timestamp"] = Date.now();
   sendDataInternal(peers[peerName], data);
 }
 

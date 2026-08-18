@@ -1,21 +1,22 @@
 import { bindPeer } from '/munchkin/web/p2p.js';
 import { connectToPeer } from '/munchkin/web/p2p.js';
 import { sendData } from '/munchkin/web/p2p.js';
+import { broadcastData } from '/munchkin/web/p2p.js';
 import { getPeerNames } from '/munchkin/web/p2p.js';
 import { getMyPeerName } from '/munchkin/web/p2p.js';
+
+import { ChatWidget } from './chat.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
   const loginDiv = document.getElementById('login');
   const peerInput = document.getElementById('peer-input');
-  const lobbyDiv = document.getElementById('lobby');
-  const roomInput = document.getElementById('room-input');
-  const playersUl = document.getElementById('player-list');
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
 
   let roomName = null;
   let peerName = null;
+  let chat = new ChatWidget();
 
   function hideLogin() {
     loginDiv.style.display = 'none';
@@ -26,21 +27,14 @@ document.addEventListener('DOMContentLoaded', () => {
     peerInput.focus();
   }
 
-  function hideLobby() {
-    lobbyDiv.style.display = 'none';
-  }
-
-  function showLobby() {
-    lobbyDiv.style.display = 'block';
-    roomInput.focus();
-  }
-
   function hideGame() {
     canvas.style.display = 'none';
+    chat.hide();
   }
 
   function showGame() {
     canvas.style.display = 'block';
+    chat.show();
   }
 
   peerInput.addEventListener('keydown', (evt) => {
@@ -55,26 +49,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  roomInput.addEventListener('keydown', (evt) => {
-    if (evt.keyCode === 13) {
-      hideLobby();
-      showGame();
-      roomName = roomInput.value.trim();
-      roomName = roomName.length == 0 ? null : roomName;
-      if (roomName)
-        connectToPeer(roomName);
-      else
-        console.log("No room name provided");
+  chat.addEventListener('adduser', (evt) => {
+    connectToPeer(evt.detail.name);
+  });
+
+  chat.addEventListener('sendmessage', (evt) => {
+    const envelope = evt.detail;
+    const data = {
+      type: "CHAT",
+      timestamp: envelope.timestamp,
+      text: envelope.text
+    };
+    if (envelope.recipient == ChatWidget.BROADCAST) {
+      data.broadcast = true;
+      broadcastData(data);
+    } else {
+      data.broadcast = false;
+      sendData(envelope.recipient, data);
     }
   });
 
   window.addEventListener('onPeerCreated', function(evt) {
-    showLobby();
     showGame();
-    const li = document.createElement("li");
-    li.innerText = evt.detail.friendlyName;
-    li.style.fontWeight = "bold";
-    playersUl.appendChild(li);
+    // TODO set me
   });
 
   window.addEventListener('onErrorPeerAlreadyExists', function(evt) {
@@ -83,33 +80,22 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   window.addEventListener('onErrorPeerNotFound', function(evt) {
-    hideGame();
-    showLobby();
+    // TODO feedback to chat
     alert('Room "' + evt.detail.friendlyName + '" not found, choose another one');
   });
 
   window.addEventListener('onErrorPeerTimeoutOutgoingConnection', function(evt) {
-    hideGame();
-    showLobby();
+    // TODO
     alert('Connection to room "' + evt.detail.friendlyName + '" timed out, try again');
   });
 
   window.addEventListener('onPeerNewConnection', function(evt) {
-    const li = document.createElement("li");
-    li.innerText = evt.detail.friendlyName;
-    playersUl.appendChild(li);
+    chat.addUser({ name: evt.detail.friendlyName, online: true });
     sendData(evt.detail.friendlyName, { type: "REQ_PEER_LIST" });
   });
 
   window.addEventListener('onPeerCloseConnection', function(evt) {
-    const lis = playersUl.children;
-    for (let i = 0; i < lis.length; i++) {
-      const li = lis[i];
-      if (li.innerText === evt.detail.friendlyName) {
-        li.remove();
-        return;
-      }
-    }
+    chat.removeUser(evt.detail.friendlyName);
   });
 
   window.addEventListener('onPeerDataReceived', function(evt) {
@@ -132,6 +118,14 @@ document.addEventListener('DOMContentLoaded', () => {
         data.peers.forEach((peerName) => {
           if (peerName !== myPeerName && !peerNames.includes(peerName))
             connectToPeer(peerName);
+        });
+        break;
+      case "CHAT":
+        chat.receiveMessage({
+          timestamp: data.timestamp,
+          text: data.text,
+          recipient: data.broadcast ? ChatWidget.BROADCAST : ChatWidget.ME,
+          sender: envelope.friendlyName
         });
         break;
       default:
