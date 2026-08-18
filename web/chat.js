@@ -1,5 +1,7 @@
-export class ChatWidget {
+export class ChatWidget extends EventTarget {
   constructor(options = {}) {
+    super(); // Inizializza EventTarget
+
     this.target = options.target || document.body;
     this.activeRecipient = 'all';
     this.isOpen = true;
@@ -75,12 +77,17 @@ export class ChatWidget {
       this.isOpen = !this.isOpen;
       this.container.classList.toggle('chat-closed', !this.isOpen);
       toggleBtn.innerText = this.isOpen ? '>>' : '<<';
+
+      // Evento di cambio stato visibilità
+      this.dispatchEvent(new CustomEvent('toggle', {
+        detail: { isOpen: this.isOpen }
+      }));
     });
 
-    // Stub Aggiungi Interlocutore
+    // Pressione pulsante "+" (Aggiungi Interlocutore)
     const addBtn = this.container.querySelector('.chat-add-btn');
     addBtn.addEventListener('click', () => {
-      this.addInterlocutor();
+      this.dispatchEvent(new CustomEvent('addinterlocutor'));
     });
 
     // Textarea Invio & Auto-Expand
@@ -89,7 +96,14 @@ export class ChatWidget {
         e.preventDefault();
         const text = this.textareaEl.value.trim();
         if (text) {
-          this.sendMessage(text, this.activeRecipient);
+          // Scatena l'evento verso l'esterno
+          this.dispatchEvent(new CustomEvent('sendmessage', {
+            detail: {
+              text: text,
+              recipient: this.activeRecipient
+            }
+          }));
+
           this.textareaEl.value = '';
           this.textareaEl.style.height = 'auto';
         }
@@ -118,7 +132,10 @@ export class ChatWidget {
       if (!action) return;
 
       if (action === 'info') {
-        this.onInfoAction(this.selectedItemData);
+        // Scatena evento Info
+        this.dispatchEvent(new CustomEvent('info', {
+          detail: { ...this.selectedItemData }
+        }));
       } else if (action === 'whisper') {
         if (this.selectedItemData && this.selectedItemData.username) {
           this.setRecipient(this.selectedItemData.username);
@@ -133,7 +150,7 @@ export class ChatWidget {
     const handle = this.container.querySelector('.chat-resize-handle-x');
     let isResizing = false;
 
-    handle.addEventListener('mousedown', (e) => {
+    handle.addEventListener('mousedown', () => {
       isResizing = true;
       document.body.style.cursor = 'ew-resize';
       document.body.style.userSelect = 'none';
@@ -141,7 +158,6 @@ export class ChatWidget {
 
     window.addEventListener('mousemove', (e) => {
       if (!isResizing) return;
-      // Calcola larghezza partendo dal bordo destro dello schermo
       const newWidth = window.innerWidth - e.clientX;
       this.container.style.width = `${newWidth}px`;
     });
@@ -172,11 +188,11 @@ export class ChatWidget {
       if (!isResizing) return;
 
       const containerRect = this.container.getBoundingClientRect();
-      const topOffset = e.clientY - containerRect.top - 48; // Sottrae l'altezza dell'header
+      const topOffset = e.clientY - containerRect.top - 48;
       const totalHeight = topWrapper.offsetHeight + bottomWrapper.offsetHeight;
 
       let topPercentage = (topOffset / totalHeight) * 100;
-      topPercentage = Math.max(15, Math.min(85, topPercentage)); // Limiti min/max %
+      topPercentage = Math.max(15, Math.min(85, topPercentage));
 
       topWrapper.style.flex = `${topPercentage}`;
       bottomWrapper.style.flex = `${100 - topPercentage}`;
@@ -208,10 +224,14 @@ export class ChatWidget {
     this.selectedItemData = null;
   }
 
-  /* --- API Pubbliche / Metodi di Modulo --- */
+  /* --- API Pubbliche / Metodi per aggiornare lo Stato del Widget --- */
   setRecipient(name) {
     this.activeRecipient = name;
     this.modeLabelEl.innerText = `Mode: ${name}`;
+
+    this.dispatchEvent(new CustomEvent('recipientchange', {
+      detail: { recipient: name }
+    }));
   }
 
   addUser(user) {
@@ -240,30 +260,5 @@ export class ChatWidget {
     `;
     this.historyListEl.appendChild(li);
     this.historyListEl.parentElement.scrollTop = this.historyListEl.parentElement.scrollHeight;
-  }
-
-  // Event Handlers / Stubs
-  sendMessage(text, recipient) {
-    // TODO: Integrare qui il client WebSocket o Fetch API
-    console.log(`[Invio] A: ${recipient} | Testo: ${text}`);
-
-    // Mock visuale locale immediato
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    this.addMessage({
-      timestamp: now,
-      sender: 'Me',
-      recipient: recipient,
-      text: text
-    });
-  }
-
-  addInterlocutor() {
-    // TODO: Implementare logica di apertura modal o prompt aggiunta utente
-    console.log('[STUB] Aggiungi interlocutore cliccato');
-  }
-
-  onInfoAction(itemData) {
-    // TODO: Implementare visualizzazione modal informazioni
-    console.log('[STUB] Info cliccato per:', itemData);
   }
 }

@@ -102,15 +102,15 @@
 .chat-history-wrapper {
   overflow-y: auto;
   position: relative;
-  min-height: 60px; /* Imposto un vincolo di altezza minima */
+  min-height: 60px;
 }
 
 .chat-user-list-wrapper {
-  flex: 1; /* Inizialmente 50% dello spazio flex */
+  flex: 1;
 }
 
 .chat-history-wrapper {
-  flex: 1; /* Inizialmente 50% dello spazio flex */
+  flex: 1;
 }
 
 .chat-list {
@@ -143,7 +143,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background-color: #10b981; /* Verde Online */
+  background-color: #10b981;
 }
 
 .chat-status-dot.chat-offline {
