@@ -7,7 +7,7 @@
 
     <!-- Foglio di stile CSS esterno -->
     <link rel="stylesheet" href="style.css">
-
+    <link rel="stylesheet" href="./chat.css">
     <script type="module" src="p2p.js"></script>
     <script type="module" src="game.js"></script>
 </head>
@@ -29,6 +29,31 @@
   <ul id="player-list"></ul>
   <canvas id="canvas" width="600" height="400"></canvas>
 </div>
+<script type="module">
+    import { ChatWidget } from './chat.js';
 
+    // Inizializzazione Widget
+    const chat = new ChatWidget();
+
+    // Dati di prova interlocutori
+    chat.addUser({ name: 'Mario Rossi', online: true });
+    chat.addUser({ name: 'Luigi Verdi', online: false });
+    chat.addUser({ name: 'Anna Bianchi', online: true });
+
+    // Dati di prova cronologia messaggi
+    chat.addMessage({
+      timestamp: '10:14',
+      sender: 'Mario Rossi',
+      recipient: 'all',
+      text: 'Ciao a tutti! Benvenuti nella chat.'
+    });
+
+    chat.addMessage({
+      timestamp: '10:15',
+      sender: 'Luigi Verdi',
+      recipient: 'Mario Rossi',
+      text: 'Ciao Mario, ti rispondo in privato.'
+    });
+</script>
 </body>
 </html>
