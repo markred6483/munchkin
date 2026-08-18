@@ -1,12 +1,13 @@
 export class ChatWidget extends EventTarget {
+
   constructor(options = {}) {
-    super(); // Inizializza EventTarget
+    super(); // Initialize EventTarget
 
     this.target = options.target || document.body;
-    this.activeRecipient = 'all';
+    this.activeRecipient = ChatWidget.MODE_BROADCAST;
     this.isOpen = true;
 
-    // Riferimenti elementi DOM
+    // DOM elements references
     this.container = null;
     this.userListEl = null;
     this.historyListEl = null;
@@ -33,9 +34,9 @@ export class ChatWidget extends EventTarget {
       <div class="chat-resize-handle-x"></div>
 
       <header class="chat-header">
-        <button class="chat-toggle-btn" title="Toggle Chat">&gt;&gt;</button>
+        <button class="chat-toggle-btn" title="Toggle Chat"></button>
         <button class="chat-add-btn" title="Add user">+</button>
-        <input class="chat-add-input" title="User name"></input>
+        <input class="chat-add-input" title="User name" placeholder="Name of the user to add"></input>
       </header>
 
       <div class="chat-user-list-wrapper">
@@ -50,8 +51,8 @@ export class ChatWidget extends EventTarget {
 
       <footer class="chat-footer">
         <div class="chat-input-container">
-          <span class="chat-mode-label">Mode: ALL</span>
-          <textarea class="chat-textarea" rows="1" placeholder="Write a message..."></textarea>
+          <span class="chat-mode-label"></span>
+          <textarea class="chat-textarea" rows="1" placeholder="Your message..."></textarea>
         </div>
       </footer>
 
@@ -72,20 +73,21 @@ export class ChatWidget extends EventTarget {
   }
 
   _attachEventListeners() {
-    // Toggle Apri/Chiudi
+    // Toggle open/close
     const toggleBtn = this.container.querySelector('.chat-toggle-btn');
+    const closeSymbol = '❯❯';
+    const openSymbol = '❮❮';
+    toggleBtn.innerText = closeSymbol; // https://www.freecodecamp.org/news/smart-quotes-single-quote-and-double-quotation-mark-for-copy-paste/
     toggleBtn.addEventListener('click', () => {
       this.isOpen = !this.isOpen;
       this.container.classList.toggle('chat-closed', !this.isOpen);
-      toggleBtn.innerText = this.isOpen ? '>>' : '<<';
-
-      // Evento di cambio stato visibilità
+      toggleBtn.innerText = this.isOpen ? closeSymbol : openSymbol;
       this.dispatchEvent(new CustomEvent('toggle', {
         detail: { isOpen: this.isOpen }
       }));
     });
 
-    // Pressione pulsante "+" (Aggiungi Interlocutore)
+    // Add user
     const addBtn = this.container.querySelector('.chat-add-btn');
     const addInput = this.container.querySelector('.chat-add-input');
     addBtn.addEventListener('click', () => {
@@ -105,19 +107,13 @@ export class ChatWidget extends EventTarget {
       }
     });
 
-    // Textarea Invio & Auto-Expand
+    // Textarea send & expand
     this.textareaEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         const text = this.textareaEl.value.trim();
         if (text) {
-          // Scatena l'evento verso l'esterno
-          this.dispatchEvent(new CustomEvent('sendmessage', {
-            detail: {
-              text: text,
-              recipient: this.activeRecipient
-            }
-          }));
+          this._sendMessage(text, this.activeRecipient);
           this.textareaEl.value = '';
           this.textareaEl.style.height = 'auto';
         }
@@ -131,7 +127,7 @@ export class ChatWidget extends EventTarget {
 
     // Delegazione Eventi Click su liste per Menu Contestuale
     this.container.addEventListener('click', (e) => {
-      const listItem = e.target.closest('.chat-list-item');
+      const listItem = e.target.closest('.chat-user-item');
       if (listItem) {
         e.stopPropagation();
         this._showContextMenu(e.clientX, e.clientY, listItem);
@@ -152,10 +148,16 @@ export class ChatWidget extends EventTarget {
         }));
       } else if (action === 'whisper') {
         if (this.selectedItemData && this.selectedItemData.username) {
-          this.setRecipient(this.selectedItemData.username);
+          this._setRecipient(this.selectedItemData.username);
         }
       }
       this._hideContextMenu();
+    });
+
+    // Mode change
+    this._setRecipient(ChatWidget.MODE_BROADCAST);
+    this.modeLabelEl.addEventListener('click', (e) => {
+      this._setRecipient(ChatWidget.MODE_BROADCAST);
     });
   }
 
@@ -238,14 +240,54 @@ export class ChatWidget extends EventTarget {
     this.selectedItemData = null;
   }
 
-  /* --- API Pubbliche / Metodi per aggiornare lo Stato del Widget --- */
-  setRecipient(name) {
+  _setRecipient(name) {
     this.activeRecipient = name;
-    this.modeLabelEl.innerText = `Mode: ${name}`;
-
+    if (name != ChatWidget.MODE_BROADCAST)
+      this.modeLabelEl.innerText = `Whisper: ${name}`;
+    else
+      this.modeLabelEl.innerText = ChatWidget.MODE_BROADCAST.toString();
     this.dispatchEvent(new CustomEvent('recipientchange', {
       detail: { recipient: name }
     }));
+  }
+
+  _sendMessage(text, recipient) {
+    const envelope = {
+      timestamp: new Date(),
+      sender: ChatWidget.ME,
+      recipient: recipient,
+      text: text
+    }
+    this._addMessage(envelope);
+    this.dispatchEvent(new CustomEvent('sendmessage', { detail: envelope }));
+  }
+
+  _addMessage(msg) {
+    const isRecipientMe = msg.recipient === ChatWidget.ME;
+    const isSenderMe = msg.sender === ChatWidget.SENDER;
+    msg.recipient = isRecipientMe ? ChatWidget.ME.toString() : msg.recipient;
+    msg.sender = isSenderMe ? ChatWidget.ME.toString() : msg.sender;
+    msg.timestamp = (msg.timestamp instanceof Date) ? msg.timestamp : new Date(msg.timestamp);
+    const li = document.createElement('li');
+    li.className = 'chat-list-item';
+    li.dataset.msgId = msg.id || Date.now();
+    li.innerHTML = `
+      <div class="chat-msg-header">
+        <span class="chat-badge chat-badge-time">${msg.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="chat-badge chat-badge-sender">${msg.sender}</span>
+        <span>&#10132;</span>
+        <span class="chat-badge chat-badge-recipient">${msg.recipient}</span>
+      </div>
+      <div class="chat-msg-body">${msg.text}</div>
+    `; // https://www.toptal.com/designers/htmlarrows/arrows/
+    this.historyListEl.appendChild(li);
+    this.historyListEl.parentElement.scrollTop = this.historyListEl.parentElement.scrollHeight;
+  }
+
+  /* --- API Pubbliche / Metodi per aggiornare lo Stato del Widget --- */
+
+  receiveMessage(envelope) {
+    this._addMessage(envelope);
   }
 
   addUser(user) {
@@ -259,20 +301,26 @@ export class ChatWidget extends EventTarget {
     this.userListEl.appendChild(li);
   }
 
-  addMessage(msg) {
-    const li = document.createElement('li');
-    li.className = 'chat-list-item';
-    li.dataset.msgId = msg.id || Date.now();
-    li.innerHTML = `
-      <div class="chat-msg-header">
-        <span class="chat-badge chat-badge-time">${msg.timestamp}</span>
-        <span class="chat-badge chat-badge-sender">${msg.sender}</span>
-        <span>-&gt;</span>
-        <span class="chat-badge chat-badge-recipient">${msg.recipient}</span>
-      </div>
-      <div class="chat-msg-body">${msg.text}</div>
-    `;
-    this.historyListEl.appendChild(li);
-    this.historyListEl.parentElement.scrollTop = this.historyListEl.parentElement.scrollHeight;
+  removeUser(username) {
+    this.userListEl.querySelector(`[data-username="${username}"]`).remove();
   }
+
+  removeAllUsers() {
+    this.userListEl.innerHTML = "";
+  }
+
 }
+
+Object.defineProperty(ChatWidget, 'ME', {
+    value: { toString: () => 'Me' },
+    writable : false,
+    enumerable : true,
+    configurable : false
+});
+
+Object.defineProperty(ChatWidget, 'MODE_BROADCAST', {
+    value: { toString: () => 'Broadcast' },
+    writable : false,
+    enumerable : true,
+    configurable : false
+});
