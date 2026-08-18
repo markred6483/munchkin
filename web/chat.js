@@ -34,7 +34,8 @@ export class ChatWidget extends EventTarget {
 
       <header class="chat-header">
         <button class="chat-toggle-btn" title="Toggle Chat">&gt;&gt;</button>
-        <button class="chat-add-btn" title="Aggiungi Interlocutore">+</button>
+        <button class="chat-add-btn" title="Add user">+</button>
+        <input class="chat-add-input" title="User name"></input>
       </header>
 
       <div class="chat-user-list-wrapper">
@@ -50,7 +51,7 @@ export class ChatWidget extends EventTarget {
       <footer class="chat-footer">
         <div class="chat-input-container">
           <span class="chat-mode-label">Mode: ALL</span>
-          <textarea class="chat-textarea" rows="1" placeholder="Scrivi un messaggio..."></textarea>
+          <textarea class="chat-textarea" rows="1" placeholder="Write a message..."></textarea>
         </div>
       </footer>
 
@@ -86,8 +87,22 @@ export class ChatWidget extends EventTarget {
 
     // Pressione pulsante "+" (Aggiungi Interlocutore)
     const addBtn = this.container.querySelector('.chat-add-btn');
+    const addInput = this.container.querySelector('.chat-add-input');
     addBtn.addEventListener('click', () => {
-      this.dispatchEvent(new CustomEvent('addinterlocutor'));
+      addBtn.style.display = 'none';
+      addInput.style.display = 'block';
+      addInput.focus();
+    });
+    addInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const name = addInput.value.trim();
+        addInput.style.display = 'none';
+        addBtn.style.display = 'block';
+        addInput.value = '';
+        if (name)
+          this.dispatchEvent(new CustomEvent('adduser', { detail: { name } }));
+      }
     });
 
     // Textarea Invio & Auto-Expand
@@ -103,7 +118,6 @@ export class ChatWidget extends EventTarget {
               recipient: this.activeRecipient
             }
           }));
-
           this.textareaEl.value = '';
           this.textareaEl.style.height = 'auto';
         }
