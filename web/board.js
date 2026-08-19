@@ -3,7 +3,7 @@
  *
  * Implementa pan e zoom "Toward Cursor" esenti da layout thrashing,
  * supporta 5 livelli di zoom, scorciatoie tastiera orientate al cursore,
- * pinch-to-zoom e scroll nativo a 2 dita da trackpad.
+ * pinch-to-zoom, scroll nativo a 2 dita da trackpad e margini esterni simmetrici.
  */
 export class GameBoard {
   /**
@@ -11,6 +11,7 @@ export class GameBoard {
    * @param {string|HTMLElement} config.containerSelector - Elemento contenitore principale
    * @param {number} [config.width=5000] - Larghezza base del tavolo in px
    * @param {number} [config.height=5000] - Altezza base del tavolo in px
+   * @param {number} [config.boardPadding=32] - Margine visivo esterno simmetrico in px
    * @param {number} [config.levelsCount=5] - Numero di livelli distinti di zoom
    * @param {number} [config.initialLevel=5] - Livello di zoom iniziale (default 5 = 100%)
    * @param {Function} [config.onZoomChange] - Callback attivata al cambio di zoom
@@ -26,6 +27,7 @@ export class GameBoard {
 
     this.baseWidth = config.width || 5000;
     this.baseHeight = config.height || 5000;
+    this.padding = config.boardPadding !== undefined ? config.boardPadding : 32;
     this.levelsCount = config.levelsCount || 5;
     this.currentLevel = config.initialLevel || 5;
     this.onZoomChange = config.onZoomChange || (() => {});
@@ -62,7 +64,7 @@ export class GameBoard {
   }
 
   /**
-   * Costruisce la struttura DOM interna a doppio container.
+   * Costruisce la struttura DOM interna a doppio container con padding esterno.
    * @private
    */
   _initDOM() {
@@ -73,9 +75,10 @@ export class GameBoard {
     this.viewportEl = document.createElement('div');
     this.viewportEl.className = 'board-viewport';
 
-    // Canvas esterno per riservare lo spazio di scroll dinamico
+    // Canvas esterno per riservare lo spazio di scroll dinamico + margine esterno
     this.canvasEl = document.createElement('div');
     this.canvasEl.className = 'board-canvas';
+    this.canvasEl.style.padding = `${this.padding}px`;
 
     // Layer di contenuto scalato via hardware-accelerated CSS transform
     this.contentEl = document.createElement('div');
@@ -89,7 +92,8 @@ export class GameBoard {
   }
 
   /**
-   * Calcola la scala minima (Livello 1) per far aderire perfettamente il tavolo al viewport.
+   * Calcola la scala minima (Livello 1) per far aderire il tavolo al viewport
+   * garantendo il margine simmetrico (boardPadding) su tutti e 4 i lati.
    * @private
    */
   _recalculateScaleLimits() {
@@ -98,9 +102,12 @@ export class GameBoard {
 
     if (vw === 0 || vh === 0) return;
 
-    // Il livello 1 adatta l'intero tavolo al viewport corrente
-    const scaleX = vw / this.baseWidth;
-    const scaleY = vh / this.baseHeight;
+    // Sottrae il doppio del padding per lasciare lo spazio esatto sui 4 lati
+    const availableWidth = Math.max(100, vw - this.padding * 2);
+    const availableHeight = Math.max(100, vh - this.padding * 2);
+
+    const scaleX = availableWidth / this.baseWidth;
+    const scaleY = availableHeight / this.baseHeight;
 
     this.minScale = Math.min(scaleX, scaleY);
     this.maxScale = 1.0; // Il livello 5 è sempre al 100% della dimensione nativa
@@ -147,13 +154,11 @@ export class GameBoard {
       const x = this.currentMousePos.x - rect.left;
       const y = this.currentMousePos.y - rect.top;
 
-      // Verifica che il mouse sia effettivamente nei confini del viewport
       if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
         return { x, y };
       }
     }
 
-    // Default: Centro del viewport
     return {
       x: this.viewportEl.clientWidth / 2,
       y: this.viewportEl.clientHeight / 2
@@ -162,7 +167,7 @@ export class GameBoard {
 
   /**
    * Applica in modo atomico la trasformazione CSS e aggiorna il layout di scroll.
-   * EVITA LAYOUT THRASHING aggiornando width/height e scroll in una singola passata sincrona.
+   * Tenendo conto del padding per mantenere il punto fisso sotto il cursore.
    * @private
    */
   _applyScaleAndScroll(newScale, focalPoint) {
@@ -173,15 +178,15 @@ export class GameBoard {
       return;
     }
 
-    // Calcola il punto focale effettivo (Cursore o Centro)
     const focus = this._getEffectiveFocalPoint(focalPoint);
 
-    // Posizione del punto focale sul layer di contenuto non scalato (coordinate mondo)
+    // Coordinate correnti di scroll
     const currentScrollLeft = this.viewportEl.scrollLeft;
     const currentScrollTop = this.viewportEl.scrollTop;
 
-    const worldX = (currentScrollLeft + focus.x) / oldScale;
-    const worldY = (currentScrollTop + focus.y) / oldScale;
+    // Posizione del punto focale sul layer di contenuto non scalato (coordinate mondo)
+    const worldX = (currentScrollLeft + focus.x - this.padding) / oldScale;
+    const worldY = (currentScrollTop + focus.y - this.padding) / oldScale;
 
     // 1. Aggiorna la scala sul layer trasformato (accelerazione GPU)
     this.contentEl.style.transform = `scale(${this.currentScale})`;
@@ -192,9 +197,9 @@ export class GameBoard {
     this.canvasEl.style.width = `${newCanvasWidth}px`;
     this.canvasEl.style.height = `${newCanvasHeight}px`;
 
-    // 3. Ricalcola la nuova posizione di scroll per mantenere fisso il punto sotto il cursore
-    const newScrollLeft = (worldX * this.currentScale) - focus.x;
-    const newScrollTop = (worldY * this.currentScale) - focus.y;
+    // 3. Ricalcola la posizione di scroll tenendo conto del padding fisso
+    const newScrollLeft = (worldX * this.currentScale) + this.padding - focus.x;
+    const newScrollTop = (worldY * this.currentScale) + this.padding - focus.y;
 
     this.viewportEl.scrollLeft = newScrollLeft;
     this.viewportEl.scrollTop = newScrollTop;
@@ -209,7 +214,6 @@ export class GameBoard {
    * @private
    */
   _bindEvents() {
-    // Tracciamento continuo del cursore del mouse sul viewport per lo zoom da tastiera
     this.viewportEl.addEventListener('mousemove', (e) => {
       this.currentMousePos = { x: e.clientX, y: e.clientY };
     });
@@ -218,13 +222,10 @@ export class GameBoard {
       this.currentMousePos = null;
     });
 
-    // Gestione Wheel / Pinch / Scroll Trackpad a 2 dita
     this.viewportEl.addEventListener('wheel', (e) => {
-      // Sui sistemi moderni e macOs, il pinch-to-zoom imposta sempre e.ctrlKey = true.
       const isPinchGesture = e.ctrlKey;
 
       if (isPinchGesture) {
-        // Intercetta SOLO il pinch-to-zoom per applicare lo zoom al cursore
         e.preventDefault();
 
         const rect = this.viewportEl.getBoundingClientRect();
@@ -238,12 +239,8 @@ export class GameBoard {
 
         this._applyScaleAndScroll(targetScale, focalPoint);
       }
-      // Se NON è un pinch (es. scroll a 2 dita da trackpad o rotellina mouse standard):
-      // NON chiamiamo e.preventDefault().
-      // Il browser esegue lo scroll nativo ad alte prestazioni del div `.board-viewport`.
     }, { passive: false });
 
-    // Gestione Scorciatoie da Tastiera (con puntamento verso il cursore)
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
         return;
@@ -266,7 +263,6 @@ export class GameBoard {
       }
     });
 
-    // Resize Handler con ricalcolo dei limiti
     window.addEventListener('resize', () => {
       const oldMinScale = this.minScale;
       this._recalculateScaleLimits();
@@ -307,17 +303,17 @@ export class GameBoard {
   }
 
   /**
-   * Centra il tavolo orizzontalmente e verticalmente nel viewport.
+   * Centra il tavolo orizzontalmente e verticalmente nel viewport inclusi i margini.
    */
   centerBoard() {
-    const scaledWidth = this.baseWidth * this.currentScale;
-    const scaledHeight = this.baseHeight * this.currentScale;
+    const totalWidth = (this.baseWidth * this.currentScale) + (this.padding * 2);
+    const totalHeight = (this.baseHeight * this.currentScale) + (this.padding * 2);
 
     const viewportWidth = this.viewportEl.clientWidth;
     const viewportHeight = this.viewportEl.clientHeight;
 
-    this.viewportEl.scrollLeft = Math.max(0, (scaledWidth - viewportWidth) / 2);
-    this.viewportEl.scrollTop = Math.max(0, (scaledHeight - viewportHeight) / 2);
+    this.viewportEl.scrollLeft = Math.max(0, (totalWidth - viewportWidth) / 2);
+    this.viewportEl.scrollTop = Math.max(0, (totalHeight - viewportHeight) / 2);
   }
 
   /**

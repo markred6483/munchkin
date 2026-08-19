@@ -2,7 +2,6 @@
    GAME BOARD ARCHITECTURE - BEM STYLES
    ========================================================================== */
 
-/* Prevenzione di scroll o rimbalzi indebiti nel document principale */
 html, body {
   margin: 0;
   padding: 0;
@@ -33,15 +32,12 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: auto;
-  /* Abilita lo scroll fluido hardware-accelerated su iOS/macOS */
   -webkit-overflow-scrolling: touch;
 
-  /* Styling Scrollbar scure / neutre */
   scrollbar-color: #4a4a5a #121214;
   scrollbar-width: thin;
 }
 
-/* Personalizzazione scrollbar WebKit (Chrome, Safari, Edge) */
 .board-viewport::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -64,29 +60,26 @@ html, body {
 /* Spazio Virtuale per riservare lo scroll del browser */
 .board-canvas {
   position: relative;
-  box-sizing: border-box;
-  margin: auto; /* Mantiene il centramento perfetto quando la dimensione è inferiore al viewport */
+  box-sizing: content-box;
+  margin: auto;
   pointer-events: auto;
   will-change: width, height;
 }
 
 /* Layer Contenuto scalato via CSS Transforms */
 .board-content {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: relative;
   transform-origin: 0 0;
   background-color: #24242d;
-  /* Pattern griglia per percepire chiaramente lo spazio e la scala */
   background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 100px 100px;
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
   will-change: transform;
 }
 
-/* UI di Gioco Sovrapposta (Indipendente dallo Zoom del Tavolo) */
+/* UI di Gioco Sovrapposta */
 .game-ui-overlay {
   position: fixed;
   bottom: 24px;
@@ -105,6 +98,7 @@ html, body {
   user-select: none;
 }
 
+/* Bottoni UI: Rimosso il transform dal bottone per mantenere laHit Area stabile ai bordi */
 .game-ui-overlay__button {
   background: #2e2e38;
   color: #ffffff;
@@ -118,15 +112,24 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s, transform 0.1s;
+  transition: background 0.2s;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .game-ui-overlay__button:hover {
   background: #3e3e4a;
 }
 
-.game-ui-overlay__button:active {
-  transform: scale(0.95);
+/* L'effetto di pressione viene applicato all'icona interna senza spostare l'area di click del bottone */
+.game-ui-overlay__button:active .game-ui-overlay__icon {
+  transform: scale(0.8);
+}
+
+.game-ui-overlay__icon {
+  display: inline-block;
+  pointer-events: none;
+  transition: transform 0.1s ease;
 }
 
 .game-ui-overlay__info {
@@ -137,7 +140,7 @@ html, body {
   color: #d1d1e0;
 }
 
-/* Elementi di Gioco (Es. Carte nel Tavolo) */
+/* Carte di Gioco sul Tavolo */
 .game-card {
   position: absolute;
   width: 180px;
