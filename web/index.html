@@ -3,68 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>High Performance Game Board Viewport</title>
+    <title>Gioco P2P con PeerJS</title>
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="board.css">
+    <link rel="stylesheet" href="chat.css">
+    <script type="module" src="game.js"></script>
 </head>
 <body>
 
-<!-- Contenitore Principale del Tavolo di Gioco -->
-<div id="board-container"></div>
-
-<!-- Interfaccia UI Sovrapposta (Non Scalata) -->
-<div class="game-ui-overlay">
-    <button id="btn-zoom-out" class="game-ui-overlay__button" title="Zoom Out (-)">-</button>
-    <span id="zoom-indicator" class="game-ui-overlay__info">Zoom: 5 / 5</span>
-    <button id="btn-zoom-in" class="game-ui-overlay__button" title="Zoom In (+)">+</button>
-    <button id="btn-center" class="game-ui-overlay__button" title="Centra Vista">🎯</button>
+<div id="login" class="form">
+    <label for="peer-input">Peer name</label>
+    <input type="text" id="peer-input" placeholder="Your name" title="Your name" />
 </div>
 
-<script type="module">
-    import { GameBoard } from './board.js';
-
-    // Inizializzazione della Board
-    const board = new GameBoard({
-      containerSelector: '#board-container',
-      width: 5000,
-      height: 5000,
-      levelsCount: 5,
-      initialLevel: 5, // Avvio a Livello 5 (100% Zoom)
-      onZoomChange: (level, scale) => {
-        const percentage = Math.round(scale * 100);
-        document.getElementById('zoom-indicator').textContent = `Lvl ${level}/5 (${percentage}%)`;
-      }
-    });
-
-    // Inserimento elementi di esempio (Carte di Gioco) posizionati in modo assoluto
-    const content = board.getContentContainer();
-
-    const card1 = document.createElement('div');
-    card1.className = 'game-card';
-    card1.style.left = '2400px';
-    card1.style.top = '2375px';
-    card1.innerHTML = `
-      <div class="game-card__title">Carta Centro</div>
-      <div class="game-card__body">Coordinate: (2400, 2375)</div>
-    `;
-
-    const card2 = document.createElement('div');
-    card2.className = 'game-card';
-    card2.style.left = '2620px';
-    card2.style.top = '2375px';
-    card2.style.background = 'linear-gradient(135deg, #ec4899, #d946ef)';
-    card2.innerHTML = `
-      <div class="game-card__title">Carta Incantesimo</div>
-      <div class="game-card__body">Coordinate: (2620, 2375)</div>
-    `;
-
-    content.appendChild(card1);
-    content.appendChild(card2);
-
-    // Event Listeners per i controlli UI
-    document.getElementById('btn-zoom-in').addEventListener('click', () => board.zoomIn());
-    document.getElementById('btn-zoom-out').addEventListener('click', () => board.zoomOut());
-    document.getElementById('btn-center').addEventListener('click', () => board.centerBoard());
-</script>
+<!-- Interfaccia UI Sovrapposta (Non Scalata) -->
+<!--<div class="game-ui-overlay">-->
+<!--    <button id="btn-zoom-out" class="game-ui-overlay__button" title="Zoom Out (-)">-</button>-->
+<!--    <span id="zoom-indicator" class="game-ui-overlay__info">Zoom: 5 / 5</span>-->
+<!--    <button id="btn-zoom-in" class="game-ui-overlay__button" title="Zoom In (+)">+</button>-->
+<!--    <button id="btn-center" class="game-ui-overlay__button" title="Centra Vista">🎯</button>-->
+<!--</div>-->
 
 </body>
 </html>

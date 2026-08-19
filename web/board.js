@@ -17,9 +17,14 @@ export class GameBoard {
    * @param {Function} [config.onZoomChange] - Callback attivata al cambio di zoom
    */
   constructor(config = {}) {
-    this.container = typeof config.containerSelector === 'string'
-      ? document.querySelector(config.containerSelector)
-      : config.containerSelector;
+    if (!config.containerSelector) {
+      this.container = document.createElement('div');
+      document.body.appendChild(this.container);
+    } else if (typeof config.containerSelector === 'string') {
+      this.container = document.querySelector(config.containerSelector);
+    } else {
+      this.container = config.containerSelector;
+    }
 
     if (!this.container) {
       throw new Error("GameBoard: Elemento contenitore non trovato.");
@@ -61,6 +66,7 @@ export class GameBoard {
 
     // Event Listeners
     this._bindEvents();
+    this.container.style.display = 'none';
   }
 
   /**
@@ -323,4 +329,13 @@ export class GameBoard {
   getContentContainer() {
     return this.contentEl;
   }
+
+  show() {
+    this.container.style.display = 'block';
+  }
+
+  hide() {
+    this.container.style.display = 'none';
+  }
+
 }

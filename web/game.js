@@ -1,11 +1,22 @@
 import { P2PSocket } from './p2p.js';
 import { ChatWidget } from './chat.js';
+import { GameBoard } from './board.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
   const loginDiv = document.getElementById('login');
   const peerInput = document.getElementById('peer-input');
-  const board = document.getElementById('board');
+  const board = new GameBoard({
+    containerSelector: null,
+    width: 5000,
+    height: 5000,
+    levelsCount: 5,
+    initialLevel: 5, // Avvio a Livello 5 (100% Zoom)
+//    onZoomChange: (level, scale) => {
+//      const percentage = Math.round(scale * 100);
+//      document.getElementById('zoom-indicator').textContent = `Lvl ${level}/5 (${percentage}%)`;
+//    }
+  });
   const chat = new ChatWidget();
   const socket = new P2PSocket();
 
@@ -19,14 +30,41 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function hideGame() {
-    board.style.display = 'none';
+    board.hide();
     chat.hide();
   }
 
   function showGame() {
-    board.style.display = 'block';
-    window.scrollTo(board.scrollWidth / 2 - document.body.scrollWidth / 2, board.scrollHeight / 2 - document.body.scrollHeight / 2);
-    chat.show(); // TODO
+    board.show();
+    chat.show();
+    // Inserimento elementi di esempio (Carte di Gioco) posizionati in modo assoluto
+    const content = board.getContentContainer();
+
+    const card1 = document.createElement('div');
+    card1.className = 'game-card';
+    card1.style.left = '2400px';
+    card1.style.top = '2375px';
+    card1.innerHTML = `
+      <div class="game-card__title">Carta Centro</div>
+      <div class="game-card__body">Coordinate: (2400, 2375)</div>
+    `;
+
+    const card2 = document.createElement('div');
+    card2.className = 'game-card';
+    card2.style.left = '2620px';
+    card2.style.top = '2375px';
+    card2.style.background = 'linear-gradient(135deg, #ec4899, #d946ef)';
+    card2.innerHTML = `
+      <div class="game-card__title">Carta Incantesimo</div>
+      <div class="game-card__body">Coordinate: (2620, 2375)</div>
+    `;
+
+    content.appendChild(card1);
+    content.appendChild(card2);
+
+//    document.getElementById('btn-zoom-in').addEventListener('click', () => board.zoomIn());
+//    document.getElementById('btn-zoom-out').addEventListener('click', () => board.zoomOut());
+//    document.getElementById('btn-center').addEventListener('click', () => board.centerBoard());
   }
 
   peerInput.addEventListener('keydown', (evt) => {
