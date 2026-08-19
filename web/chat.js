@@ -262,21 +262,20 @@ export class ChatWidget extends EventTarget {
   }
 
   _addMessage(msg) {
-    // TODO use isRecipientMe & isSenderMe to style the message differently
-    const isRecipientMe = msg.recipient === ChatWidget.ME;
-    const isSenderMe = msg.sender === ChatWidget.SENDER;
-    msg.recipient = isRecipientMe ? ChatWidget.ME.toString() : msg.recipient;
-    msg.sender = isSenderMe ? ChatWidget.ME.toString() : msg.sender;
+    const isSpecialSender = typeof msg.sender === 'object';
+    const isSpecialRecipient = typeof msg.recipient === 'object';
+    msg.sender = isSpecialSender ? msg.sender.toString() : msg.sender;
+    msg.recipient = isSpecialRecipient ? msg.recipient.toString() : msg.recipient;
     msg.timestamp = (msg.timestamp instanceof Date) ? msg.timestamp : new Date(msg.timestamp);
     const li = document.createElement('li');
     li.className = 'chat-list-item';
     li.dataset.msgId = msg.id || Date.now();
     li.innerHTML = `
       <div class="chat-msg-header">
-        <span class="chat-badge chat-badge-time">${msg.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
-        <span class="chat-badge chat-badge-sender">${msg.sender}</span>
+        <span class="chat-badge chat-badge-special">${msg.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="chat-badge ${isSpecialSender ? 'chat-badge-special' : 'chat-badge-user'}">${msg.sender}</span>
         <span>&#10132;</span>
-        <span class="chat-badge chat-badge-recipient">${msg.recipient}</span>
+        <span class="chat-badge ${isSpecialRecipient ? 'chat-badge-special' : 'chat-badge-user'}">${msg.recipient}</span>
       </div>
       <div class="chat-msg-body">${msg.text}</div>
     `; // https://www.toptal.com/designers/htmlarrows/arrows/
@@ -341,6 +340,13 @@ Object.defineProperty(ChatWidget, 'ME', {
 
 Object.defineProperty(ChatWidget, 'BROADCAST', {
     value: { toString: () => 'Broadcast' },
+    writable : false,
+    enumerable : true,
+    configurable : false
+});
+
+Object.defineProperty(ChatWidget, 'SYSTEM', {
+    value: { toString: () => 'System' },
     writable : false,
     enumerable : true,
     configurable : false

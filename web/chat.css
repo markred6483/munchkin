@@ -178,9 +178,8 @@
   font-weight: 600;
 }
 
-.chat-badge-time { background-color: #374151; color: #9ca3af; }
-.chat-badge-sender { background-color: #312e81; color: #a5b4fc; }
-.chat-badge-recipient { background-color: #064e3b; color: #6ee7b7; }
+.chat-badge-special { background-color: #374151; color: #9ca3af; }
+.chat-badge-user { background-color: #312e81; color: #a5b4fc; }
 
 .chat-msg-body {
   font-size: 0.875rem;
