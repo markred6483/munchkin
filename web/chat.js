@@ -139,26 +139,26 @@ export class ChatWidget extends EventTarget {
       }
     });
 
-    // Azioni Menu Contestuale
+    // Context menu actions
     this.contextMenuEl.addEventListener('click', (e) => {
       const action = e.target.dataset.action;
       if (!action) return;
-
       if (action === 'info') {
-        // Scatena evento Info
         this._dispatchEvent('info', { ...this.selectedItemData });
       } else if (action === 'whisper') {
         if (this.selectedItemData && this.selectedItemData.username) {
           this._setRecipient(this.selectedItemData.username);
+          this.textareaEl.focus();
         }
       }
       this._hideContextMenu();
     });
 
-    // Mode change
+    // Chat mode change
     this._setRecipient(ChatWidget.BROADCAST);
     this.modeLabelEl.addEventListener('click', (e) => {
       this._setRecipient(ChatWidget.BROADCAST);
+      this.textareaEl.focus();
     });
   }
 

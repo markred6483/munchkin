@@ -1,141 +1,146 @@
 import { Peer } from 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm';
 
-// TODO refact all of this as a class P2PSocket
+export class P2PSocket extends EventTarget {
 
-const ROOM_PREFIX = 'munchkin-with-friends-';
-var peer = null; // https://peerjs.com/client/api/peer
-var myPeerName = null;
-const peers = {}; // https://peerjs.com/client/api/data-connection
-const pendingPeers = {};
-
-export function bindPeer(peerName) {
-  const fullPeerName = ROOM_PREFIX + peerName;
-  console.log('Binding peer "' + peerName + '" (full name: "' + fullPeerName + '")');
-  if (peer && !peer.destroyed) { // TODO remove this after making sure it doesn't happen
-    console.error("Peer was not null and not destroyed, destroying it now");
-    peer.destroy();
+  constructor(options = {}) {
+    super();
+    this.namesPrefix = 'p2p-friends-';
+    this.myPeerName = null;
+    this.myPeer = null; // https://peerjs.com/client/api/peer
+    this.peers = {}; // https://peerjs.com/client/api/data-connection
+    this.pendingPeers = {}; // { peerName: { connection, timeout } }
   }
-  peer = new Peer(fullPeerName);
-  myPeerName = peerName;
-  peer.on('open', (id) => {
-    console.log("Peer ready to accept new connections");
-    dispatchEventInternal('onPeerCreated', { fullName: fullPeerName, friendlyName: peerName, id: id });
-  });
-  peer.on('error', (err) => {
-    if (err.type === 'unavailable-id') {
-      console.log("Peer already exists");
-      peer.destroy();
-      dispatchEventInternal('onErrorPeerAlreadyExists', { fullName: fullPeerName, friendlyName: peerName, error: err });
-    } else if (err.type === 'peer-unavailable') {
-      const index = err.message.indexOf(ROOM_PREFIX);
-      if (index === -1) {
-        console.error("Peer not found, error message does not contain ROOM_PREFIX");
-      } else {
-        const otherPeerName = err.message.slice(index + ROOM_PREFIX.length);
-        const pending = pendingPeers[otherPeerName];
-        if (!pending) {
-          console.error("Peer not found, error message does not contain a valid peer name");
+
+  bindPeer(peerName) {
+    const fullPeerName = this.namesPrefix + peerName;
+    console.log('Binding peer "' + peerName + '" (full name: "' + fullPeerName + '")');
+    if (this.myPeer && !this.myPeer.destroyed) { // TODO remove this after making sure it doesn't happen
+      console.error("Peer was not null and not destroyed, destroying it now");
+      this.myPeer.destroy();
+    }
+    this.myPeer = new Peer(fullPeerName);
+    this.myPeerName = peerName;
+    this.myPeer.on('open', (id) => {
+      console.log("Peer ready to accept new connections");
+      this._dispatchEvent('onPeerCreated', { fullName: fullPeerName, friendlyName: peerName, id: id });
+    });
+    this.myPeer.on('error', (err) => {
+      if (err.type === 'unavailable-id') {
+        console.log("Peer already exists");
+        this.myPeer.destroy();
+        this._dispatchEvent('onErrorPeerAlreadyExists', { fullName: fullPeerName, friendlyName: peerName, error: err });
+      } else if (err.type === 'peer-unavailable') {
+        const index = err.message.indexOf(this.namesPrefix);
+        if (index === -1) {
+          console.error("Peer not found, error message does not contain namesPrefix");
         } else {
-          console.log('Peer not found: ' + otherPeerName);
-          clearTimeout(pending.timeout);
-          delete pendingPeers[otherPeerName];
-          dispatchEventInternal('onErrorPeerNotFound', { friendlyName: otherPeerName, error: err, connection: pending.connection });
+          const otherPeerName = err.message.slice(index + this.namesPrefix.length);
+          const pending = this.pendingPeers[otherPeerName];
+          if (!pending) {
+            console.error("Peer not found, error message does not contain a valid peer name");
+          } else {
+            console.log('Peer not found: ' + otherPeerName);
+            clearTimeout(pending.timeout);
+            delete this.pendingPeers[otherPeerName];
+            this._dispatchEvent('onErrorPeerNotFound', { friendlyName: otherPeerName, error: err, connection: pending.connection });
+          }
         }
+      } else {
+        console.error(err);
+        console.error(JSON.stringify(err));
       }
-    } else {
+    });
+    this.myPeer.on('connection', (conn) => {
+      const otherFriendlyName = conn.peer.replace(this.namesPrefix, '');
+      console.log('New connection from peer: ' + otherFriendlyName);
+      this._setupConnection(conn);
+    });
+  }
+
+  connectToPeer(peerName) {
+    if (peerName == null)
+      return;
+    if (this.peers[peerName]) {
+      if (this.peers[peerName].open)
+        return;
+      delete this.peers[peerName];
+    }
+    const peerFullName = this.namesPrefix + peerName;
+    const initialConn = this.myPeer.connect(peerFullName);
+    const timeout = setTimeout(
+      () => {
+        console.error("Connection to peer timed out: " + peerName);
+        delete this.pendingPeers[peerName];
+        this._dispatchEvent('onErrorPeerTimeoutOutgoingConnection', { friendlyName: peerName, connection: initialConn });
+      }, 3000);
+    this.pendingPeers[peerName] = { connection: initialConn, timeout: timeout };
+    this._dispatchEvent('onPeerInitOutgoingConnection', { friendlyName: peerName, connection: initialConn });
+    initialConn.on('open', () => {
+      const pending = this.pendingPeers[peerName];
+      if (!pending) {
+        console.error("Connection to peer was already removed from pending, this should not happen: " + peerName);
+        initialConn.close();
+      } else {
+        clearTimeout(pending.timeout);
+        delete this.pendingPeers[peerName];
+        this._dispatchEvent('onPeerOutgoingConnection', { friendlyName: peerName, connection: initialConn });
+      }
+    });
+    this._setupConnection(initialConn);
+  }
+
+  broadcastData(data) {
+    if (!data["timestamp"])
+      data["timestamp"] = Date.now();
+    Object.values(this.peers).forEach((conn) => this._sendData(conn, data));
+  }
+
+  sendData(peerName, data) {
+    if (!data["timestamp"])
+      data["timestamp"] = Date.now();
+    this._sendData(this.peers[peerName], data);
+  }
+
+  getPeerNames() {
+    return Object.keys(this.peers);
+  }
+
+  getMyPeerName() {
+    return this.myPeerName;
+  }
+
+  _setupConnection(conn) {
+    const peerName = conn.peer.replace(this.namesPrefix, '');
+    conn.on('open', () => {
+      console.log("Connected to peer: " + peerName);
+      this.peers[peerName] = conn;
+      this._dispatchEvent('onPeerNewConnection', { friendlyName: peerName, connection: conn });
+    });
+    conn.on('data', (data) => {
+      console.log("Data received from peer: " + peerName)
+      this._dispatchEvent('onPeerDataReceived', { friendlyName: peerName, data: data, connection: conn });
+    });
+    conn.on('close', () => {
+      console.log("Connection closed: " + peerName)
+      delete this.peers[peerName];
+      this._dispatchEvent('onPeerCloseConnection', { friendlyName: peerName, connection: conn });
+    });
+    conn.on('error', (err) => {
       console.error(err);
       console.error(JSON.stringify(err));
-    }
-  });
-  peer.on('connection', (conn) => {
-    const otherFriendlyName = conn.peer.replace(ROOM_PREFIX, '');
-    console.log('New connection from peer: ' + otherFriendlyName);
-    setupConnectionInternal(conn);
-  });
-}
-
-export function connectToPeer(peerName) {
-  if (peerName == null)
-    return;
-  if (peers[peerName]) {
-    if (peers[peerName].open)
-      return;
-    delete peers[peerName];
+    });
+    console.log("Connection set up: " + peerName);
   }
-  const peerFullName = ROOM_PREFIX + peerName;
-  const initialConn = peer.connect(peerFullName);
-  const timeout = setTimeout(
-    () => {
-      console.error("Connection to peer timed out: " + peerName);
-      delete pendingPeers[peerName];
-      dispatchEventInternal('onErrorPeerTimeoutOutgoingConnection', { friendlyName: peerName, connection: initialConn });
-    }, 3000);
-  pendingPeers[peerName] = { connection: initialConn, timeout: timeout };
-  dispatchEventInternal('onPeerInitOutgoingConnection', { friendlyName: peerName, connection: initialConn });
-  initialConn.on('open', () => {
-    const pending = pendingPeers[peerName];
-    if (!pending) {
-      console.error("Connection to peer was already removed from pending, this should not happen: " + peerName);
-      initialConn.close();
-    } else {
-      clearTimeout(pending.timeout);
-      delete pendingPeers[peerName];
-      dispatchEventInternal('onPeerOutgoingConnection', { friendlyName: peerName, connection: initialConn });
-    }
-  });
-  setupConnectionInternal(initialConn);
-}
 
-function setupConnectionInternal(conn) {
-  const peerName = conn.peer.replace(ROOM_PREFIX, '');
-  conn.on('open', () => {
-    console.log("Connected to peer: " + peerName);
-    peers[peerName] = conn;
-    dispatchEventInternal('onPeerNewConnection', { friendlyName: peerName, connection: conn });
-  });
-  conn.on('data', (data) => {
-    console.log("Data received from peer: " + peerName)
-    dispatchEventInternal('onPeerDataReceived', { friendlyName: peerName, data: data, connection: conn });
-  });
-  conn.on('close', () => {
-    console.log("Connection closed: " + peerName)
-    delete peers[peerName];
-    dispatchEventInternal('onPeerCloseConnection', { friendlyName: peerName, connection: conn });
-  });
-  conn.on('error', (err) => {
-    console.error(err);
-    console.error(JSON.stringify(err));
-  });
-  console.log("Connection set up: " + peerName);
-}
+  _sendData(conn, data) {
+    if (conn.open)
+      conn.send(data);
+    else
+      console.error("Connection to peer is not open, cannot send data: " + conn.peer);
+  }
 
-export function broadcastData(data) {
-  if (!data["timestamp"])
-    data["timestamp"] = Date.now();
-  Object.values(peers).forEach((conn) => sendDataInternal(conn, data));
-}
+  _dispatchEvent(evtName, data) {
+    this.dispatchEvent(new CustomEvent(evtName, { detail: data }));
+  }
 
-export function sendData(peerName, data) {
-  if (!data["timestamp"])
-    data["timestamp"] = Date.now();
-  sendDataInternal(peers[peerName], data);
-}
-
-export function getPeerNames() {
-    return Object.keys(peers);
-}
-
-export function getMyPeerName() {
-  return myPeerName;
-}
-
-function sendDataInternal(conn, data) {
-  if (conn.open)
-    conn.send(data);
-  else
-    console.error("Connection to peer is not open, cannot send data: " + conn.peer);
-}
-
-function dispatchEventInternal(evtName, data) {
-  window.dispatchEvent(new CustomEvent(evtName, { detail: data }));
 }

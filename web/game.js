@@ -1,20 +1,13 @@
-import { bindPeer } from './p2p.js';
-import { connectToPeer } from './p2p.js';
-import { sendData } from './p2p.js';
-import { broadcastData } from './p2p.js';
-import { getPeerNames } from './p2p.js';
-import { getMyPeerName } from './p2p.js';
-
+import { P2PSocket } from './p2p.js';
 import { ChatWidget } from './chat.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
   const loginDiv = document.getElementById('login');
   const peerInput = document.getElementById('peer-input');
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-
-  let chat = new ChatWidget();
+  const table = document.getElementById('table');
+  const chat = new ChatWidget();
+  const socket = new P2PSocket();
 
   function hideLogin() {
     loginDiv.style.display = 'none';
@@ -26,13 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function hideGame() {
-    canvas.style.display = 'none';
+    table.style.display = 'none';
     chat.hide();
   }
 
   function showGame() {
-    canvas.style.display = 'block';
-    chat.show();
+    table.style.display = 'block';
+    window.scrollTo(table.scrollWidth / 2 - document.body.scrollWidth / 2, table.scrollHeight / 2 - document.body.scrollHeight / 2);
+    chat.show(); // TODO
   }
 
   peerInput.addEventListener('keydown', (evt) => {
@@ -43,12 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       hideLogin();
-      bindPeer(peerName);
+      socket.bindPeer(peerName);
     }
   });
 
   chat.addEventListener('adduser', (evt) => {
-    connectToPeer(evt.detail);
+    socket.connectToPeer(evt.detail);
   });
 
   chat.addEventListener('sendmessage', (evt) => {
@@ -60,43 +54,43 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     if (envelope.recipient == ChatWidget.BROADCAST) {
       data.broadcast = true;
-      broadcastData(data);
+      socket.broadcastData(data);
     } else {
       data.broadcast = false;
-      sendData(envelope.recipient, data);
+      socket.sendData(envelope.recipient, data);
     }
   });
 
-  window.addEventListener('onPeerCreated', function(evt) {
+  socket.addEventListener('onPeerCreated', function(evt) {
     showGame();
     chat.setMe(evt.detail.friendlyName);
   });
 
-  window.addEventListener('onErrorPeerAlreadyExists', function(evt) {
+  socket.addEventListener('onErrorPeerAlreadyExists', function(evt) {
     showLogin();
     alert('Peer name "' + evt.detail.friendlyName + '" already exists, choose another one');
   });
 
-  window.addEventListener('onErrorPeerNotFound', function(evt) {
+  socket.addEventListener('onErrorPeerNotFound', function(evt) {
     // TODO feedback to chat
     alert('Room "' + evt.detail.friendlyName + '" not found, choose another one');
   });
 
-  window.addEventListener('onErrorPeerTimeoutOutgoingConnection', function(evt) {
+  socket.addEventListener('onErrorPeerTimeoutOutgoingConnection', function(evt) {
     // TODO feedback to chat
     alert('Connection to room "' + evt.detail.friendlyName + '" timed out, try again');
   });
 
-  window.addEventListener('onPeerNewConnection', function(evt) {
+  socket.addEventListener('onPeerNewConnection', function(evt) {
     chat.addUser({ name: evt.detail.friendlyName, online: true });
-    sendData(evt.detail.friendlyName, { type: "REQ_PEER_LIST" });
+    socket.sendData(evt.detail.friendlyName, { type: "REQ_PEER_LIST" });
   });
 
-  window.addEventListener('onPeerCloseConnection', function(evt) {
+  socket.addEventListener('onPeerCloseConnection', function(evt) {
     chat.removeUser(evt.detail.friendlyName);
   });
 
-  window.addEventListener('onPeerDataReceived', function(evt) {
+  socket.addEventListener('onPeerDataReceived', function(evt) {
     const envelope = evt.detail;
     const data = envelope.data;
     const type = data.type;
@@ -108,14 +102,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // TODO
         break;
       case "REQ_PEER_LIST":
-        sendData(envelope.friendlyName, { type: "PEER_LIST", peers: getPeerNames() });
+        socket.sendData(envelope.friendlyName, { type: "PEER_LIST", peers: socket.getPeerNames() });
         break;
       case "PEER_LIST":
-        const myPeerName = getMyPeerName();
-        const peerNames = getPeerNames();
+        const myPeerName = socket.getMyPeerName();
+        const peerNames = socket.getPeerNames();
         data.peers.forEach((peerName) => {
           if (peerName !== myPeerName && !peerNames.includes(peerName))
-            connectToPeer(peerName);
+            socket.connectToPeer(peerName);
         });
         break;
       case "CHAT":
@@ -149,40 +143,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // --- LOGICA INPUT & CANVAS ---
-  canvas.addEventListener('mousemove', (evt) => {
-    if (!peer || !players[peer.id]) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const myPosPayload = {
-      id: peer.id,
-      x: evt.clientX - rect.left,
-      y: evt.clientY - rect.top,
-      color: myColor
-    };
-
-    players[peer.id] = myPosPayload;
-    sendToAllPeers(myPosPayload);
-    draw();
-  });
-
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    Object.values(players).forEach((p) => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
-      ctx.fillStyle = p.color || '#2ed573';
-      ctx.fill();
-
-      // Disegna un bordo nero attorno al proprio pallino locale
-      if (p.id === peer?.id) {
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#000';
-        ctx.stroke();
-      }
-      ctx.closePath();
-    });
+  function importImg(src) {
+    const img = document.createElement('img');
+    img.src = src;
+    table.appendChild(img);
   }
+
+  // TODO actual game
+  // --- LOGICA INPUT & CANVAS ---
+//  canvas.addEventListener('mousemove', (evt) => {
+//    if (!peer || !players[peer.id]) return;
+//
+//    const rect = canvas.getBoundingClientRect();
+//    const myPosPayload = {
+//      id: peer.id,
+//      x: evt.clientX - rect.left,
+//      y: evt.clientY - rect.top,
+//      color: myColor
+//    };
+//
+//    players[peer.id] = myPosPayload;
+//    sendToAllPeers(myPosPayload);
+//    draw();
+//  });
 
 });
