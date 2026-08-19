@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const loginDiv = document.getElementById('login');
   const peerInput = document.getElementById('peer-input');
-  const table = document.getElementById('table');
+  const board = document.getElementById('board');
   const chat = new ChatWidget();
   const socket = new P2PSocket();
 
@@ -19,13 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function hideGame() {
-    table.style.display = 'none';
+    board.style.display = 'none';
     chat.hide();
   }
 
   function showGame() {
-    table.style.display = 'block';
-    window.scrollTo(table.scrollWidth / 2 - document.body.scrollWidth / 2, table.scrollHeight / 2 - document.body.scrollHeight / 2);
+    board.style.display = 'block';
+    window.scrollTo(board.scrollWidth / 2 - document.body.scrollWidth / 2, board.scrollHeight / 2 - document.body.scrollHeight / 2);
     chat.show(); // TODO
   }
 
@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function importImg(src) {
     const img = document.createElement('img');
     img.src = src;
-    table.appendChild(img);
+    board.appendChild(img);
   }
 
   // TODO actual game
