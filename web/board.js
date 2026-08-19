@@ -173,7 +173,7 @@ export class GameBoard {
 
   /**
    * Applica in modo atomico la trasformazione CSS e aggiorna il layout di scroll.
-   * Tenendo conto del padding per mantenere il punto fisso sotto il cursore.
+   * Tenendo conto del padding e dell'eventuale offset di centraggio visivo (margin: auto).
    * @private
    */
   _applyScaleAndScroll(newScale, focalPoint) {
@@ -186,26 +186,40 @@ export class GameBoard {
 
     const focus = this._getEffectiveFocalPoint(focalPoint);
 
+    // 1. Calcola l'offset di centraggio visivo generato da `margin: auto` nello stato precedente
+    const oldCanvasTotalWidth = (this.baseWidth * oldScale) + (this.padding * 2);
+    const oldCanvasTotalHeight = (this.baseHeight * oldScale) + (this.padding * 2);
+
+    const oldOffsetX = Math.max(0, (this.viewportEl.clientWidth - oldCanvasTotalWidth) / 2);
+    const oldOffsetY = Math.max(0, (this.viewportEl.clientHeight - oldCanvasTotalHeight) / 2);
+
     // Coordinate correnti di scroll
     const currentScrollLeft = this.viewportEl.scrollLeft;
     const currentScrollTop = this.viewportEl.scrollTop;
 
-    // Posizione del punto focale sul layer di contenuto non scalato (coordinate mondo)
-    const worldX = (currentScrollLeft + focus.x - this.padding) / oldScale;
-    const worldY = (currentScrollTop + focus.y - this.padding) / oldScale;
+    // 2. Calcola le coordinate mondo compensando sia il padding che l'offset di centraggio visivo
+    const worldX = (currentScrollLeft + focus.x - oldOffsetX - this.padding) / oldScale;
+    const worldY = (currentScrollTop + focus.y - oldOffsetY - this.padding) / oldScale;
 
-    // 1. Aggiorna la scala sul layer trasformato (accelerazione GPU)
+    // 3. Aggiorna la scala sul layer trasformato (accelerazione GPU)
     this.contentEl.style.transform = `scale(${this.currentScale})`;
 
-    // 2. Aggiorna lo spazio del canvas nativo per consentire alle scrollbar di adattarsi
+    // 4. Aggiorna lo spazio del canvas nativo per consentire alle scrollbar di adattarsi
     const newCanvasWidth = this.baseWidth * this.currentScale;
     const newCanvasHeight = this.baseHeight * this.currentScale;
     this.canvasEl.style.width = `${newCanvasWidth}px`;
     this.canvasEl.style.height = `${newCanvasHeight}px`;
 
-    // 3. Ricalcola la posizione di scroll tenendo conto del padding fisso
-    const newScrollLeft = (worldX * this.currentScale) + this.padding - focus.x;
-    const newScrollTop = (worldY * this.currentScale) + this.padding - focus.y;
+    // 5. Calcola l'offset di centraggio visivo per il NUOVO stato di scala
+    const newCanvasTotalWidth = newCanvasWidth + (this.padding * 2);
+    const newCanvasTotalHeight = newCanvasHeight + (this.padding * 2);
+
+    const newOffsetX = Math.max(0, (this.viewportEl.clientWidth - newCanvasTotalWidth) / 2);
+    const newOffsetY = Math.max(0, (this.viewportEl.clientHeight - newCanvasTotalHeight) / 2);
+
+    // 6. Ricalcola la posizione di scroll sottraendo il nuovo offset visivo
+    const newScrollLeft = (worldX * this.currentScale) + this.padding + newOffsetX - focus.x;
+    const newScrollTop = (worldY * this.currentScale) + this.padding + newOffsetY - focus.y;
 
     this.viewportEl.scrollLeft = newScrollLeft;
     this.viewportEl.scrollTop = newScrollTop;
