@@ -1,9 +1,9 @@
-import { bindPeer } from '/munchkin/web/p2p.js';
-import { connectToPeer } from '/munchkin/web/p2p.js';
-import { sendData } from '/munchkin/web/p2p.js';
-import { broadcastData } from '/munchkin/web/p2p.js';
-import { getPeerNames } from '/munchkin/web/p2p.js';
-import { getMyPeerName } from '/munchkin/web/p2p.js';
+import { bindPeer } from './p2p.js';
+import { connectToPeer } from './p2p.js';
+import { sendData } from './p2p.js';
+import { broadcastData } from './p2p.js';
+import { getPeerNames } from './p2p.js';
+import { getMyPeerName } from './p2p.js';
 
 import { ChatWidget } from './chat.js';
 
@@ -14,8 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
 
-  let roomName = null;
-  let peerName = null;
   let chat = new ChatWidget();
 
   function hideLogin() {
@@ -39,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   peerInput.addEventListener('keydown', (evt) => {
     if (evt.keyCode === 13) {
-      peerName = peerInput.value.trim();
+      const peerName = peerInput.value.trim();
       if (peerName.length == 0) {
         peerInput.value = "";
         return;
@@ -50,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   chat.addEventListener('adduser', (evt) => {
-    connectToPeer(evt.detail.name);
+    connectToPeer(evt.detail);
   });
 
   chat.addEventListener('sendmessage', (evt) => {
@@ -71,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('onPeerCreated', function(evt) {
     showGame();
-    // TODO set me
+    chat.setMe(evt.detail.friendlyName);
   });
 
   window.addEventListener('onErrorPeerAlreadyExists', function(evt) {
@@ -85,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   window.addEventListener('onErrorPeerTimeoutOutgoingConnection', function(evt) {
-    // TODO
+    // TODO feedback to chat
     alert('Connection to room "' + evt.detail.friendlyName + '" timed out, try again');
   });
 

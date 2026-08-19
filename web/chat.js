@@ -15,6 +15,7 @@ export class ChatWidget extends EventTarget {
     this.textareaEl = null;
     this.contextMenuEl = null;
     this.selectedItemData = null;
+    this.meSpan = null;
 
     this._init();
   }
@@ -35,6 +36,7 @@ export class ChatWidget extends EventTarget {
 
       <header class="chat-header">
         <button class="chat-toggle-btn" title="Toggle Chat"></button>
+        <span class="chat-user-name"></span>
         <button class="chat-add-btn" title="Add user">+</button>
         <input class="chat-add-input" title="User name" placeholder="Name of the user to add"></input>
       </header>
@@ -65,6 +67,7 @@ export class ChatWidget extends EventTarget {
     this.target.appendChild(this.container);
 
     // Cache riferimenti
+    this.meSpan = this.container.querySelector('.chat-header').querySelector('.chat-user-name');
     this.userListEl = this.container.querySelector('.chat-user-list');
     this.historyListEl = this.container.querySelector('.chat-history-list');
     this.modeLabelEl = this.container.querySelector('.chat-mode-label');
@@ -82,15 +85,14 @@ export class ChatWidget extends EventTarget {
       this.isOpen = !this.isOpen;
       this.container.classList.toggle('chat-closed', !this.isOpen);
       toggleBtn.innerText = this.isOpen ? closeSymbol : openSymbol;
-      this.dispatchEvent(new CustomEvent('toggle', {
-        detail: { isOpen: this.isOpen }
-      }));
+      this._dispatchEvent('toggle', { isOpen: this.isOpen });
     });
 
     // Add user
     const addBtn = this.container.querySelector('.chat-add-btn');
     const addInput = this.container.querySelector('.chat-add-input');
     addBtn.addEventListener('click', () => {
+      this.meSpan.style.display = 'none';
       addBtn.style.display = 'none';
       addInput.style.display = 'block';
       addInput.focus();
@@ -101,9 +103,10 @@ export class ChatWidget extends EventTarget {
         const name = addInput.value.trim();
         addInput.style.display = 'none';
         addBtn.style.display = 'block';
+        this.meSpan.style.display = 'inline';
         addInput.value = '';
         if (name)
-          this.dispatchEvent(new CustomEvent('adduser', { detail: { name } }));
+          this._dispatchEvent('adduser', name);
       }
     });
 
@@ -143,9 +146,7 @@ export class ChatWidget extends EventTarget {
 
       if (action === 'info') {
         // Scatena evento Info
-        this.dispatchEvent(new CustomEvent('info', {
-          detail: { ...this.selectedItemData }
-        }));
+        this._dispatchEvent('info', { ...this.selectedItemData });
       } else if (action === 'whisper') {
         if (this.selectedItemData && this.selectedItemData.username) {
           this._setRecipient(this.selectedItemData.username);
@@ -246,9 +247,7 @@ export class ChatWidget extends EventTarget {
       this.modeLabelEl.innerText = `Whisper: ${name}`;
     else
       this.modeLabelEl.innerText = ChatWidget.BROADCAST.toString();
-    this.dispatchEvent(new CustomEvent('recipientchange', {
-      detail: { recipient: name }
-    }));
+    this._dispatchEvent('recipientchange', { recipient: name });
   }
 
   _sendMessage(text, recipient) {
@@ -259,11 +258,11 @@ export class ChatWidget extends EventTarget {
       text: text
     }
     this._addMessage(envelope);
-    this.dispatchEvent(new CustomEvent('sendmessage', { detail: envelope }));
+    this._dispatchEvent('sendmessage', envelope );
   }
 
   _addMessage(msg) {
-    // TODO
+    // TODO use isRecipientMe & isSenderMe to style the message differently
     const isRecipientMe = msg.recipient === ChatWidget.ME;
     const isSenderMe = msg.sender === ChatWidget.SENDER;
     msg.recipient = isRecipientMe ? ChatWidget.ME.toString() : msg.recipient;
@@ -289,11 +288,11 @@ export class ChatWidget extends EventTarget {
     return this.userListEl.querySelector(`[data-username="${username}"]`);
   }
 
-  _dispatchEvent(evtName, data) { // TODO use this
+  _dispatchEvent(evtName, data) {
     this.dispatchEvent(new CustomEvent(evtName, { detail: data }));
   }
 
-  /* --- API Pubbliche / Metodi per aggiornare lo Stato del Widget --- */
+  /* --- Public API --- */
 
   receiveMessage(envelope) {
     this._addMessage(envelope);
@@ -328,7 +327,7 @@ export class ChatWidget extends EventTarget {
   }
 
   setMe(username) {
-    // TODO
+    this.meSpan.innerText = username;
   }
 
 }

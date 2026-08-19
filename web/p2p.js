@@ -1,5 +1,6 @@
 import { Peer } from 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm';
 
+// TODO refact all of this as a class P2PSocket
 
 const ROOM_PREFIX = 'munchkin-with-friends-';
 var peer = null; // https://peerjs.com/client/api/peer
