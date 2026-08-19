@@ -1,0 +1,173 @@
+/* ==========================================================================
+   GAME BOARD ARCHITECTURE - BEM STYLES
+   ========================================================================== */
+
+/* Prevenzione di scroll o rimbalzi indebiti nel document principale */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #121214;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Container Radice isolato */
+.board-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background-color: #1a1a1e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Viewport con Scrollbar Native sempre visibili e veloci */
+.board-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  /* Abilita lo scroll fluido hardware-accelerated su iOS/macOS */
+  -webkit-overflow-scrolling: touch;
+
+  /* Styling Scrollbar scure / neutre */
+  scrollbar-color: #4a4a5a #121214;
+  scrollbar-width: thin;
+}
+
+/* Personalizzazione scrollbar WebKit (Chrome, Safari, Edge) */
+.board-viewport::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.board-viewport::-webkit-scrollbar-track {
+  background: #121214;
+}
+
+.board-viewport::-webkit-scrollbar-thumb {
+  background: #3f3f4c;
+  border-radius: 4px;
+  border: 2px solid #121214;
+}
+
+.board-viewport::-webkit-scrollbar-thumb:hover {
+  background: #5a5a6e;
+}
+
+/* Spazio Virtuale per riservare lo scroll del browser */
+.board-canvas {
+  position: relative;
+  box-sizing: border-box;
+  margin: auto; /* Mantiene il centramento perfetto quando la dimensione è inferiore al viewport */
+  pointer-events: auto;
+  will-change: width, height;
+}
+
+/* Layer Contenuto scalato via CSS Transforms */
+.board-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  background-color: #24242d;
+  /* Pattern griglia per percepire chiaramente lo spazio e la scala */
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 100px 100px;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+  will-change: transform;
+}
+
+/* UI di Gioco Sovrapposta (Indipendente dallo Zoom del Tavolo) */
+.game-ui-overlay {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(26, 26, 30, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  user-select: none;
+}
+
+.game-ui-overlay__button {
+  background: #2e2e38;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.game-ui-overlay__button:hover {
+  background: #3e3e4a;
+}
+
+.game-ui-overlay__button:active {
+  transform: scale(0.95);
+}
+
+.game-ui-overlay__info {
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 90px;
+  text-align: center;
+  color: #d1d1e0;
+}
+
+/* Elementi di Gioco (Es. Carte nel Tavolo) */
+.game-card {
+  position: absolute;
+  width: 180px;
+  height: 250px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.game-card:hover {
+  box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4);
+  transform: translateY(-4px);
+}
+
+.game-card__title {
+  font-weight: bold;
+  font-size: 16px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.game-card__body {
+  font-size: 12px;
+  opacity: 0.8;
+}
