@@ -2,8 +2,8 @@
  * GameBoard - Gestore del Tavolo di Gioco ad Altissime Prestazioni
  *
  * Implementa pan e zoom "Toward Cursor" esenti da layout thrashing,
- * supporta 5 livelli di zoom, scorciatoie tastiera, pinch-to-zoom da trackpad
- * e mantiene la navigazione nativa delle scrollbar.
+ * supporta 5 livelli di zoom, scorciatoie tastiera orientate al cursore,
+ * pinch-to-zoom e scroll nativo a 2 dita da trackpad.
  */
 export class GameBoard {
   /**
@@ -43,8 +43,8 @@ export class GameBoard {
     this.maxScale = 1; // Corrisponde al livello massimo (100% / scala 1.0)
     this.currentScale = 1;
 
-    // Flag per evitare race conditions/thrashing durante i gesture
-    this.isUpdating = false;
+    // Tracciamento posizione del mouse per zoom da tastiera "Toward Cursor"
+    this.currentMousePos = null;
 
     // Inizializzazione architettura
     this._initDOM();
@@ -69,7 +69,7 @@ export class GameBoard {
     this.container.classList.add('board-root');
     this.container.innerHTML = '';
 
-    // Viewport per gestione scrollbar native
+    // Viewport per gestione scrollbar native e pan con 2 dita da trackpad
     this.viewportEl = document.createElement('div');
     this.viewportEl.className = 'board-viewport';
 
@@ -133,7 +133,35 @@ export class GameBoard {
   }
 
   /**
-   * Applica atomica la trasformazione CSS e aggiorna il layout di scroll.
+   * Restituisce le coordinate correnti del punto focale per lo zoom:
+   * 1. Se fornito esplicitamente, usa il focalPoint passato.
+   * 2. Se il mouse si trova dentro il viewport, usa le sue coordinate (Toward Cursor).
+   * 3. Altrimenti ripiega sul centro del viewport.
+   * @private
+   */
+  _getEffectiveFocalPoint(focalPoint) {
+    if (focalPoint) return focalPoint;
+
+    if (this.currentMousePos) {
+      const rect = this.viewportEl.getBoundingClientRect();
+      const x = this.currentMousePos.x - rect.left;
+      const y = this.currentMousePos.y - rect.top;
+
+      // Verifica che il mouse sia effettivamente nei confini del viewport
+      if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+        return { x, y };
+      }
+    }
+
+    // Default: Centro del viewport
+    return {
+      x: this.viewportEl.clientWidth / 2,
+      y: this.viewportEl.clientHeight / 2
+    };
+  }
+
+  /**
+   * Applica in modo atomico la trasformazione CSS e aggiorna il layout di scroll.
    * EVITA LAYOUT THRASHING aggiornando width/height e scroll in una singola passata sincrona.
    * @private
    */
@@ -145,16 +173,15 @@ export class GameBoard {
       return;
     }
 
-    // Coordinate punto focale rispetto al viewport
-    const focusX = focalPoint ? focalPoint.x : this.viewportEl.clientWidth / 2;
-    const focusY = focalPoint ? focalPoint.y : this.viewportEl.clientHeight / 2;
+    // Calcola il punto focale effettivo (Cursore o Centro)
+    const focus = this._getEffectiveFocalPoint(focalPoint);
 
     // Posizione del punto focale sul layer di contenuto non scalato (coordinate mondo)
     const currentScrollLeft = this.viewportEl.scrollLeft;
     const currentScrollTop = this.viewportEl.scrollTop;
 
-    const worldX = (currentScrollLeft + focusX) / oldScale;
-    const worldY = (currentScrollTop + focusY) / oldScale;
+    const worldX = (currentScrollLeft + focus.x) / oldScale;
+    const worldY = (currentScrollTop + focus.y) / oldScale;
 
     // 1. Aggiorna la scala sul layer trasformato (accelerazione GPU)
     this.contentEl.style.transform = `scale(${this.currentScale})`;
@@ -166,8 +193,8 @@ export class GameBoard {
     this.canvasEl.style.height = `${newCanvasHeight}px`;
 
     // 3. Ricalcola la nuova posizione di scroll per mantenere fisso il punto sotto il cursore
-    const newScrollLeft = (worldX * this.currentScale) - focusX;
-    const newScrollTop = (worldY * this.currentScale) - focusY;
+    const newScrollLeft = (worldX * this.currentScale) - focus.x;
+    const newScrollTop = (worldY * this.currentScale) - focus.y;
 
     this.viewportEl.scrollLeft = newScrollLeft;
     this.viewportEl.scrollTop = newScrollTop;
@@ -182,10 +209,22 @@ export class GameBoard {
    * @private
    */
   _bindEvents() {
-    // Gestione Zoom tramite Wheel o Touchpad Pinch
+    // Tracciamento continuo del cursore del mouse sul viewport per lo zoom da tastiera
+    this.viewportEl.addEventListener('mousemove', (e) => {
+      this.currentMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    this.viewportEl.addEventListener('mouseleave', () => {
+      this.currentMousePos = null;
+    });
+
+    // Gestione Wheel / Pinch / Scroll Trackpad a 2 dita
     this.viewportEl.addEventListener('wheel', (e) => {
-      // Blocca il comportamento di zoom nativo del browser se si preme CTRL o si fa un pinch
-      if (e.ctrlKey || Math.abs(e.deltaY) < 50) {
+      // Sui sistemi moderni e macOs, il pinch-to-zoom imposta sempre e.ctrlKey = true.
+      const isPinchGesture = e.ctrlKey;
+
+      if (isPinchGesture) {
+        // Intercetta SOLO il pinch-to-zoom per applicare lo zoom al cursore
         e.preventDefault();
 
         const rect = this.viewportEl.getBoundingClientRect();
@@ -194,17 +233,18 @@ export class GameBoard {
           y: e.clientY - rect.top
         };
 
-        // Calibrazione delta per massima morbidezza
         const zoomFactor = Math.exp(-e.deltaY * this.pinchSensitivity);
         const targetScale = this.currentScale * zoomFactor;
 
         this._applyScaleAndScroll(targetScale, focalPoint);
       }
+      // Se NON è un pinch (es. scroll a 2 dita da trackpad o rotellina mouse standard):
+      // NON chiamiamo e.preventDefault().
+      // Il browser esegue lo scroll nativo ad alte prestazioni del div `.board-viewport`.
     }, { passive: false });
 
-    // Gestione Scorciatoie da Tastiera
+    // Gestione Scorciatoie da Tastiera (con puntamento verso il cursore)
     window.addEventListener('keydown', (e) => {
-      // Ignora se l'utente sta digitando in un input
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
         return;
       }
@@ -231,7 +271,6 @@ export class GameBoard {
       const oldMinScale = this.minScale;
       this._recalculateScaleLimits();
 
-      // Se eravamo al minimo, mantieni la nuova scala minima aggiornata
       if (this.currentScale <= oldMinScale) {
         this.currentScale = this.minScale;
       }
@@ -242,7 +281,7 @@ export class GameBoard {
   // --- METODI PUBBLICI ---
 
   /**
-   * Incrementa lo zoom di 1 livello verso il centro del viewport.
+   * Incrementa lo zoom di 1 livello (orientato al cursore se presente, altrimenti al centro).
    */
   zoomIn() {
     const targetLevel = Math.min(this.levelsCount, this.currentLevel + 1);
@@ -250,7 +289,7 @@ export class GameBoard {
   }
 
   /**
-   * Decrementa lo zoom di 1 livello verso il centro del viewport.
+   * Decrementa lo zoom di 1 livello (orientato al cursore se presente, altrimenti al centro).
    */
   zoomOut() {
     const targetLevel = Math.max(1, this.currentLevel - 1);
@@ -260,10 +299,11 @@ export class GameBoard {
   /**
    * Imposta direttamente un livello di zoom discreto (1-5).
    * @param {number} level
+   * @param {Object} [focalPoint] - Punto focale opzionale {x, y}
    */
-  setZoomLevel(level) {
+  setZoomLevel(level, focalPoint = null) {
     const targetScale = this._getScaleForLevel(level);
-    this._applyScaleAndScroll(targetScale, null);
+    this._applyScaleAndScroll(targetScale, focalPoint);
   }
 
   /**
