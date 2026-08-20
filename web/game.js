@@ -1,6 +1,9 @@
 import { P2PSocket } from './p2p.js';
+import { P2PRandom } from './p2p_random.js';
 import { ChatWidget } from './chat.js';
 import { GameBoard } from './board.js';
+
+export var p2pRandom;
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -37,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function showGame() {
     board.show();
     chat.show();
+
     // Inserimento elementi di esempio (Carte di Gioco) posizionati in modo assoluto
     const content = board.getContentContainer();
 
@@ -122,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.addEventListener('onPeerNewConnection', function(evt) {
     chat.addUser({ name: evt.detail.friendlyName, online: true });
     socket.sendData(evt.detail.friendlyName, { type: "REQ_PEER_LIST" });
+    p2pRandom = new P2PRandom(socket);
   });
 
   socket.addEventListener('onPeerCloseConnection', function(evt) {
@@ -158,8 +163,6 @@ document.addEventListener('DOMContentLoaded', () => {
           sender: envelope.friendlyName
         });
         break;
-      default:
-        console.error('Unknown "' + type + '" payload type');
     }
   });
 
