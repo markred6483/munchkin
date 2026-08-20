@@ -52,7 +52,7 @@ export class P2PSocket extends EventTarget {
     });
     this.myPeer.on('connection', (conn) => {
       const otherFriendlyName = conn.peer.replace(this.namesPrefix, '');
-      console.log('New connection from peer: ' + otherFriendlyName);
+      console.log('New connection from peer: ' + conn.peer);
       this._setupConnection(conn);
     });
   }
@@ -112,16 +112,16 @@ export class P2PSocket extends EventTarget {
   _setupConnection(conn) {
     const peerName = conn.peer.replace(this.namesPrefix, '');
     conn.on('open', () => {
-      console.log("Connected to peer: " + peerName);
+      console.log("Connected to peer: " + conn.peer);
       this.peers[peerName] = conn;
       this._dispatchEvent('onPeerNewConnection', { friendlyName: peerName, connection: conn });
     });
     conn.on('data', (data) => {
-      console.log("Data received from peer: " + peerName)
+      console.log("Received data " + data.type + " from peer: " + conn.peer);
       this._dispatchEvent('onPeerDataReceived', { friendlyName: peerName, data: data, connection: conn });
     });
     conn.on('close', () => {
-      console.log("Connection closed: " + peerName)
+      console.log("Connection closed: " + conn.peer)
       delete this.peers[peerName];
       this._dispatchEvent('onPeerCloseConnection', { friendlyName: peerName, connection: conn });
     });
@@ -129,14 +129,16 @@ export class P2PSocket extends EventTarget {
       console.error(err);
       console.error(JSON.stringify(err));
     });
-    console.log("Connection set up: " + peerName);
+    console.log("Connection set up: " + conn.peer);
   }
 
   _sendData(conn, data) {
-    if (conn.open)
-      conn.send(data);
-    else
+    if (!conn.open) {
       console.error("Connection to peer is not open, cannot send data: " + conn.peer);
+      return;
+    }
+    console.log("Sending data " + data.type + " to peer: " + conn.peer);
+    conn.send(data);
   }
 
   _dispatchEvent(evtName, data) {
