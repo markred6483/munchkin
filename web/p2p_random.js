@@ -27,6 +27,7 @@ export class P2PRandom {
 
     this.listeners = new Set();
     this.activeRounds = new Map(); // roundId -> RoundState object
+    this.bufferedMessages = new Map(); // key: `${sender}:${type}` -> message object
 
     this._boundOnDataReceived = this._onDataReceived.bind(this);
     this.socket.addEventListener('onPeerDataReceived', this._boundOnDataReceived);
@@ -65,7 +66,7 @@ export class P2PRandom {
       spki: spkiHex
     });
 
-    // 4. Collect SPKI Keys from connected peers
+    // 4. Collect SPKI Keys from connected peers (checking buffer for early messages)
     const keyExMsgs = await this._collectFromPeers(
       peerNames,
       (msg) => msg.data && msg.data.type === 'KEY_EXCHANGE',
@@ -96,7 +97,7 @@ export class P2PRandom {
       hash: myLobbyHash
     });
 
-    // 8. Collect Lobby Hashes from all peers
+    // 8. Collect Lobby Hashes from all peers (checking buffer for early messages)
     const hashMsgs = await this._collectFromPeers(
       peerNames,
       (msg) => msg.data && msg.data.type === 'LOBBY_HASH',
@@ -127,6 +128,7 @@ export class P2PRandom {
       this.publicKeys[pName] = importedKey;
     }
 
+    this.bufferedMessages.clear();
     this.isInitialized = true;
   }
 
@@ -611,6 +613,11 @@ export class P2PRandom {
 
     const msg = { sender: friendlyName, data };
 
+    // Buffer setup/handshake messages to survive asynchronous init() execution across peers
+    if (data.type === 'KEY_EXCHANGE' || data.type === 'LOBBY_HASH') {
+      this.bufferedMessages.set(`${friendlyName}:${data.type}`, msg);
+    }
+
     // Dispatch to generic dynamic listeners (e.g. init step)
     for (const listener of Array.from(this.listeners)) {
       try {
@@ -663,7 +670,7 @@ export class P2PRandom {
   }
 
   /**
-   * Helper to collect specific socket messages from a set of peers with timeout/disconnect guards.
+   * Helper to collect specific socket messages from a set of peers with buffer checking, timeout, and disconnect guards.
    */
   _collectFromPeers(expectedPeers, filterFn, timeoutMs, actionName) {
     if (expectedPeers.length === 0) {
@@ -673,6 +680,22 @@ export class P2PRandom {
     return new Promise((resolve, reject) => {
       const results = new Map();
       const pending = new Set(expectedPeers);
+
+      // Check buffer for messages that arrived prior to listener registration
+      for (const peerName of expectedPeers) {
+        for (const [key, bufferedMsg] of this.bufferedMessages.entries()) {
+          if (bufferedMsg.sender === peerName && filterFn(bufferedMsg)) {
+            results.set(peerName, bufferedMsg);
+            pending.delete(peerName);
+            break;
+          }
+        }
+      }
+
+      if (pending.size === 0) {
+        resolve(results);
+        return;
+      }
 
       const timer = setTimeout(() => {
         cleanup();
