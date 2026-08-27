@@ -45,6 +45,8 @@ export class GameBoard {
     this.canvasEl = null;
     this.contentEl = null;
 
+    this.touchStartDist = 0;
+
     // Stato dello zoom
     this.minScale = 1;
     this.maxScale = 1; // Corrisponde al livello massimo (100% / scala 1.0)
@@ -103,8 +105,8 @@ export class GameBoard {
    * @private
    */
   _recalculateScaleLimits() {
-    const vw = this.viewportEl.clientWidth;
-    const vh = this.viewportEl.clientHeight;
+    const vw = this.viewportEl.clientWidth || window.innerWidth;
+    const vh = this.viewportEl.clientHeight || window.innerHeight;
 
     if (vw === 0 || vh === 0) return;
 
@@ -283,7 +285,7 @@ export class GameBoard {
       }
     });
 
-    window.addEventListener('resize', () => {
+    const handleResize = () => {
       const oldMinScale = this.minScale;
       this._recalculateScaleLimits();
 
@@ -291,7 +293,56 @@ export class GameBoard {
         this.currentScale = this.minScale;
       }
       this._applyScaleAndScroll(this.currentScale, null);
-    });
+    };
+
+    window.addEventListener('resize', handleResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+    }
+    
+    // Gestione Pinch-to-Zoom nativo su Mobile (Zoom-In & Zoom-Out)
+    this.viewportEl.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        this.touchStartDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    }, { passive: true });
+
+    this.viewportEl.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault(); // Impedisce lo zoom della pagina intera
+
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+
+        const delta = currentDist - this.touchStartDist;
+        const threshold = 35; // Soglia sensibilità pinch mobile
+
+        if (Math.abs(delta) > threshold) {
+          // Centro tra le due dita per ancorare lo zoom
+          const touchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const touchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const rect = this.viewportEl.getBoundingClientRect();
+
+          const targetPoint = {
+            x: touchCenterX - rect.left,
+            y: touchCenterY - rect.top
+          };
+
+          if (delta > 0) {
+            this.zoomIn(targetPoint);
+          } else {
+            this.zoomOut(targetPoint);
+          }
+
+          this.touchStartDist = currentDist; // Aggiorna la distanza base
+        }
+      }
+    }, { passive: false });
   }
 
   // --- METODI PUBBLICI ---

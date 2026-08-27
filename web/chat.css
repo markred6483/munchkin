@@ -14,7 +14,7 @@
   position: fixed;
   top: 0;
   right: 0;
-  height: 100vh;
+  height: 100%;
   width: var(--chat-min-width);
   min-width: var(--chat-min-width);
   max-width: var(--chat-max-width);
