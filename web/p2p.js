@@ -90,14 +90,10 @@ export class P2PSocket extends EventTarget {
   }
 
   broadcastData(data) {
-    if (!data["timestamp"])
-      data["timestamp"] = Date.now();
     Object.values(this.peers).forEach((conn) => this._sendData(conn, data));
   }
 
   sendData(peerName, data) {
-    if (!data["timestamp"])
-      data["timestamp"] = Date.now();
     this._sendData(this.peers[peerName], data);
   }
 
