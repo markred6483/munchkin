@@ -2,13 +2,13 @@ import { P2PSocket } from './p2p.js';
 import { P2PRandom } from './p2p_random.js';
 import { ChatWidget } from './chat.js';
 import { GameBoard } from './board.js';
+import { LoginForm } from './login.js';
 
 export var p2pRandom;
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  const loginDiv = document.getElementById('login');
-  const peerInput = document.getElementById('peer-input');
+  const login = new LoginForm();
   const board = new GameBoard({
     containerSelector: null,
     width: 5000,
@@ -22,15 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   const chat = new ChatWidget();
   const socket = new P2PSocket();
-
-  function hideLogin() {
-    loginDiv.style.display = 'none';
-  }
-
-  function showLogin() {
-    login.style.display = 'block';
-    peerInput.focus();
-  }
 
   function hideGame() {
     board.hide();
@@ -71,16 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-center').addEventListener('click', () => board.centerBoard());
   }
 
-  peerInput.addEventListener('keydown', (evt) => {
-    if (evt.keyCode === 13) {
-      const peerName = peerInput.value.trim();
-      if (peerName.length == 0) {
-        peerInput.value = "";
-        return;
-      }
-      hideLogin();
-      socket.bindPeer(peerName);
-    }
+  // Gestione evento login tramite il componente LoginForm
+  login.onLogin((peerName) => {
+    login.hide();
+    socket.bindPeer(peerName);
   });
 
   chat.addEventListener('adduser', (evt) => {
@@ -109,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   socket.addEventListener('onErrorPeerAlreadyExists', function(evt) {
-    showLogin();
+    login.show();
     alert('Peer name "' + evt.detail.friendlyName + '" already exists, choose another one');
   });
 
@@ -166,46 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  showLogin();
-
-  // Posizioni di tutti i giocatori { peerId: { id, x, y, color } }
-  const players = {};
-
-  // Genera un colore univoco per questo client
-  const myColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'); // TODO use player's name to generate the color
-
-  // Helper per inizializzare il proprio payload locale prima di inviarlo
-  function getMyPayload(x = 100, y = 100) {
-    return {
-      id: peer ? peer.id : null,
-      x: x,
-      y: y,
-      color: myColor
-    };
-  }
-
-  function importImg(src) {
-    const img = document.createElement('img');
-    img.src = src;
-    board.appendChild(img);
-  }
-
-  // TODO actual game
-  // --- LOGICA INPUT & CANVAS ---
-//  canvas.addEventListener('mousemove', (evt) => {
-//    if (!peer || !players[peer.id]) return;
-//
-//    const rect = canvas.getBoundingClientRect();
-//    const myPosPayload = {
-//      id: peer.id,
-//      x: evt.clientX - rect.left,
-//      y: evt.clientY - rect.top,
-//      color: myColor
-//    };
-//
-//    players[peer.id] = myPosPayload;
-//    sendToAllPeers(myPosPayload);
-//    draw();
-//  });
+  // Mostra il login all'avvio
+  login.show();
 
 });

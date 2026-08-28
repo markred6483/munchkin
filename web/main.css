@@ -1,0 +1,13 @@
+/* ==========================================================================
+   GLOBAL BASE STYLES
+   ========================================================================== */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100dvw;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: #121214;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
