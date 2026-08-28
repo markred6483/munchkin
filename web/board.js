@@ -44,6 +44,7 @@ export class GameBoard {
     this.viewportEl = null;
     this.canvasEl = null;
     this.contentEl = null;
+    this.zoomIndicatorEl = null;
 
     this.touchStartDist = 0;
 
@@ -72,7 +73,8 @@ export class GameBoard {
   }
 
   /**
-   * Costruisce la struttura DOM interna a doppio container con padding esterno.
+   * Costruisce la struttura DOM interna a doppio container con padding esterno
+   * e inietta il menu di controllo zoom.
    * @private
    */
   _initDOM() {
@@ -97,6 +99,38 @@ export class GameBoard {
     this.canvasEl.appendChild(this.contentEl);
     this.viewportEl.appendChild(this.canvasEl);
     this.container.appendChild(this.viewportEl);
+
+    // Creazione del Menù UI Zoom (figlio di .board-root)
+    const uiOverlay = document.createElement('div');
+    uiOverlay.className = 'game-ui-overlay';
+
+    const btnZoomOut = document.createElement('button');
+    btnZoomOut.className = 'game-ui-overlay__button';
+    btnZoomOut.title = 'Zoom Out (-)';
+    btnZoomOut.innerHTML = '<span class="game-ui-overlay__icon">-</span>';
+    btnZoomOut.addEventListener('click', () => this.zoomOut());
+
+    this.zoomIndicatorEl = document.createElement('span');
+    this.zoomIndicatorEl.className = 'game-ui-overlay__info';
+
+    const btnZoomIn = document.createElement('button');
+    btnZoomIn.className = 'game-ui-overlay__button';
+    btnZoomIn.title = 'Zoom In (+)';
+    btnZoomIn.innerHTML = '<span class="game-ui-overlay__icon">+</span>';
+    btnZoomIn.addEventListener('click', () => this.zoomIn());
+
+    const btnCenter = document.createElement('button');
+    btnCenter.className = 'game-ui-overlay__button';
+    btnCenter.title = 'Centra Vista';
+    btnCenter.innerHTML = '<span class="game-ui-overlay__icon">🎯</span>';
+    btnCenter.addEventListener('click', () => this.centerBoard());
+
+    uiOverlay.appendChild(btnZoomOut);
+    uiOverlay.appendChild(this.zoomIndicatorEl);
+    uiOverlay.appendChild(btnZoomIn);
+    uiOverlay.appendChild(btnCenter);
+
+    this.container.appendChild(uiOverlay);
   }
 
   /**
@@ -219,15 +253,23 @@ export class GameBoard {
     const newOffsetX = Math.max(0, (this.viewportEl.clientWidth - newCanvasTotalWidth) / 2);
     const newOffsetY = Math.max(0, (this.viewportEl.clientHeight - newCanvasTotalHeight) / 2);
 
-    // 6. Ricalcola la posizione di scroll sottraendo il nuovo offset visivo
+    // 6. Ricalcola la posizione di scroll sottrandone il nuovo offset visivo
     const newScrollLeft = (worldX * this.currentScale) + this.padding + newOffsetX - focus.x;
     const newScrollTop = (worldY * this.currentScale) + this.padding + newOffsetY - focus.y;
 
     this.viewportEl.scrollLeft = newScrollLeft;
     this.viewportEl.scrollTop = newScrollTop;
 
-    // Aggiorna il livello discreto e notifica la callback
+    // Aggiorna il livello discreto
     this.currentLevel = this._getLevelFromScale(this.currentScale);
+
+    // Aggiorna la UI interna
+    if (this.zoomIndicatorEl) {
+      const percentage = Math.round(this.currentScale * 100);
+      this.zoomIndicatorEl.textContent = `Lvl ${this.currentLevel}/${this.levelsCount} (${percentage}%)`;
+    }
+
+    // Notifica la callback esterna
     this.onZoomChange(this.currentLevel, this.currentScale);
   }
 

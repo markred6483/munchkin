@@ -14,11 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     width: 5000,
     height: 5000,
     levelsCount: 5,
-    initialLevel: 5, // Avvio a Livello 5 (100% Zoom)
-    onZoomChange: (level, scale) => {
-      const percentage = Math.round(scale * 100);
-      document.getElementById('zoom-indicator').textContent = `Lvl ${level}/5 (${percentage}%)`;
-    }
+    initialLevel: 5
   });
   const chat = new ChatWidget();
   const socket = new P2PSocket();
@@ -56,10 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     content.appendChild(card1);
     content.appendChild(card2);
-
-    document.getElementById('btn-zoom-in').addEventListener('click', () => board.zoomIn());
-    document.getElementById('btn-zoom-out').addEventListener('click', () => board.zoomOut());
-    document.getElementById('btn-center').addEventListener('click', () => board.centerBoard());
   }
 
   // Gestione evento login tramite il componente LoginForm

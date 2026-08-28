@@ -67,7 +67,7 @@
 
 /* UI di Gioco Sovrapposta */
 .game-ui-overlay {
-  position: fixed;
+  position: absolute;
   bottom: 24px;
   left: 24px;
   z-index: 9999;
