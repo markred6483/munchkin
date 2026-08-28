@@ -56,6 +56,16 @@ export class GameBoard {
     // Tracciamento posizione del mouse per zoom da tastiera "Toward Cursor"
     this.currentMousePos = null;
 
+    // Gestione Selezione, Menù Contestuale e Dragging Oggetti
+    this.selectedObject = null;
+    this.contextMenuEl = null;
+    this.isDraggingMode = false;
+    this.activeDragState = null;
+    this.eventListeners = {
+      delete: [],
+      move: []
+    };
+
     // Inizializzazione architettura
     this._initDOM();
     this._recalculateScaleLimits();
@@ -269,6 +279,11 @@ export class GameBoard {
       this.zoomIndicatorEl.textContent = `Lvl ${this.currentLevel}/${this.levelsCount} (${percentage}%)`;
     }
 
+    // Mantiene la posizione aggiornata del menù contestuale non scalato
+    if (this.selectedObject) {
+      this._updateContextMenuPosition();
+    }
+
     // Notifica la callback esterna
     this.onZoomChange(this.currentLevel, this.currentScale);
   }
@@ -284,6 +299,12 @@ export class GameBoard {
 
     this.viewportEl.addEventListener('mouseleave', () => {
       this.currentMousePos = null;
+    });
+
+    this.viewportEl.addEventListener('scroll', () => {
+      if (this.selectedObject) {
+        this._updateContextMenuPosition();
+      }
     });
 
     this.viewportEl.addEventListener('wheel', (e) => {
@@ -341,7 +362,7 @@ export class GameBoard {
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', handleResize);
     }
-    
+
     // Gestione Pinch-to-Zoom nativo su Mobile (Zoom-In & Zoom-Out)
     this.viewportEl.addEventListener('touchstart', (e) => {
       if (e.touches.length === 2) {
@@ -385,9 +406,292 @@ export class GameBoard {
         }
       }
     }, { passive: false });
+
+    // Gestione Selezione Oggetti, Deselezione e Trascinamento (PC e Touch)
+    this.contentEl.addEventListener('pointerdown', (e) => {
+      const targetObj = e.target.closest('.board-object');
+      if (targetObj) {
+        e.stopPropagation();
+        this._selectObject(targetObj);
+
+        if (this.isDraggingMode) {
+          this._startDragging(targetObj, e);
+        }
+      } else {
+        if (!e.target.closest('.board-context-menu')) {
+          this._deselectObject();
+        }
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (this.activeDragState) {
+        this._handleDragging(e);
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (this.activeDragState) {
+        this._stopDragging(e);
+      }
+    });
+  }
+
+  /**
+   * Seleziona un oggetto sul tavolo e mostra il menù contestuale.
+   * @private
+   */
+  _selectObject(el) {
+    if (this.selectedObject === el) return;
+    this._deselectObject();
+
+    this.selectedObject = el;
+    this.selectedObject.classList.add('board-object--selected');
+    this._createContextMenu(el);
+  }
+
+  /**
+   * Deseleziona l'oggetto corrente e rimuove il menù contestuale.
+   * @private
+   */
+  _deselectObject() {
+    if (this.selectedObject) {
+      this.selectedObject.classList.remove('board-object--selected');
+      this.selectedObject = null;
+    }
+    this.isDraggingMode = false;
+    this._removeContextMenu();
+  }
+
+  /**
+   * Crea e posiziona il menù contestuale sopra l'oggetto in un layer non soggetto a zoom (.board-root).
+   * @private
+   */
+  _createContextMenu(el) {
+    this._removeContextMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'board-context-menu';
+
+    // Bottone Dettaglio (TODO)
+    const btnDetails = document.createElement('button');
+    btnDetails.className = 'board-context-menu__button';
+    btnDetails.title = 'Details';
+    btnDetails.innerHTML = '🔍';
+    btnDetails.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // TODO: implementare versione ingrandita dell'oggetto
+      this._deselectObject();
+    });
+
+    // Bottone Sposta
+    const btnMove = document.createElement('button');
+    btnMove.className = 'board-context-menu__button';
+    btnMove.title = 'Move object';
+    btnMove.innerHTML = '✋';
+    btnMove.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.isDraggingMode = true;
+      btnMove.classList.add('board-context-menu__button--active');
+    });
+
+    menu.appendChild(btnDetails);
+
+    // Bottone Elimina (visibile solo se presente la classe .removable-board-object)
+    if (el.classList.contains('removable-board-object')) {
+      const btnDelete = document.createElement('button');
+      btnDelete.className = 'board-context-menu__button board-context-menu__button--delete';
+      btnDelete.title = 'Delete object';
+      btnDelete.innerHTML = '🗑️';
+      btnDelete.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.removeBoardObject(el);
+      });
+      menu.appendChild(btnDelete);
+    }
+
+    menu.appendChild(btnMove);
+
+    // Append a .board-root per prevenire lo zoom del menù
+    this.container.appendChild(menu);
+    this.contextMenuEl = menu;
+
+    this._updateContextMenuPosition();
+  }
+
+  /**
+   * Aggiorna la posizione dello schermo per il menù contestuale non scalato.
+   * @private
+   */
+  _updateContextMenuPosition() {
+    if (!this.contextMenuEl || !this.selectedObject) return;
+
+    const el = this.selectedObject;
+    const objRect = el.getBoundingClientRect();
+    const rootRect = this.container.getBoundingClientRect();
+
+    const left = objRect.left - rootRect.left + (objRect.width / 2);
+    const top = objRect.top - rootRect.top;
+
+    this.contextMenuEl.style.left = `${left}px`;
+    this.contextMenuEl.style.top = `${top}px`;
+  }
+
+  /**
+   * Rimuove il menù contestuale attivo dal DOM.
+   * @private
+   */
+  _removeContextMenu() {
+    if (this.contextMenuEl) {
+      this.contextMenuEl.remove();
+      this.contextMenuEl = null;
+    }
+  }
+
+  /**
+   * Avvia il trascinamento dell'oggetto tenendo conto della scala e dei limiti.
+   * @private
+   */
+  _startDragging(el, e) {
+    el.setPointerCapture(e.pointerId);
+    const initialLeft = parseFloat(el.style.left) || 0;
+    const initialTop = parseFloat(el.style.top) || 0;
+
+    this.activeDragState = {
+      el,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialLeft,
+      initialTop
+    };
+  }
+
+  /**
+   * Gestisce lo spostamento fluido mantenendo l'oggetto nei confini di .board-content.
+   * @private
+   */
+  _handleDragging(e) {
+    if (!this.activeDragState) return;
+
+    const { el, startX, startY, initialLeft, initialTop } = this.activeDragState;
+
+    // Delta di spostamento corretto in base allo zoom del tavolo
+    const deltaX = (e.clientX - startX) / this.currentScale;
+    const deltaY = (e.clientY - startY) / this.currentScale;
+
+    let targetLeft = initialLeft + deltaX;
+    let targetTop = initialTop + deltaY;
+
+    // Vincolo dei confini del tavolo (.board-content)
+    const objWidth = el.offsetWidth;
+    const objHeight = el.offsetHeight;
+
+    targetLeft = Math.max(0, Math.min(this.baseWidth - objWidth, targetLeft));
+    targetTop = Math.max(0, Math.min(this.baseHeight - objHeight, targetTop));
+
+    el.style.left = `${targetLeft}px`;
+    el.style.top = `${targetTop}px`;
+
+    // Aggiorna la posizione visiva del menù contestuale fisso
+    this._updateContextMenuPosition();
+  }
+
+  /**
+   * Termina il trascinamento, notifica gli ascoltatori dell'evento move e chiude la selezione.
+   * @private
+   */
+  _stopDragging(e) {
+    if (!this.activeDragState) return;
+
+    const { el, pointerId } = this.activeDragState;
+    try {
+      el.releasePointerCapture(pointerId);
+    } catch (err) {}
+
+    const x = parseFloat(el.style.left) || 0;
+    const y = parseFloat(el.style.top) || 0;
+
+    this._triggerEvent('move', { el, x, y });
+
+    this.activeDragState = null;
+    this._deselectObject();
+  }
+
+  /**
+   * Scatena i callback registrati agli eventi di sistema.
+   * @private
+   */
+  _triggerEvent(eventName, data) {
+    if (this.eventListeners[eventName]) {
+      this.eventListeners[eventName].forEach(cb => cb(data));
+    }
   }
 
   // --- METODI PUBBLICI ---
+
+  /**
+   * Registra una funzione callback per un evento di sistema ('remove' o 'move').
+   * @param {string} eventName
+   * @param {Function} callback
+   */
+  on(eventName, callback) {
+    if (this.eventListeners[eventName] && typeof callback === 'function') {
+      this.eventListeners[eventName].push(callback);
+    }
+  }
+
+  /**
+   * Elimina un oggetto dal tavolo e notifica gli ascoltatori.
+   * @param {string|HTMLElement} target - ID o elemento DOM dell'oggetto.
+   */
+  removeBoardObject(target) {
+    const el = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!el) return;
+
+    if (!el.classList.contains('removable-board-object')) {
+      throw new Error("GameBoard: Impossibile eliminare un oggetto privo della classe '.removable-board-object'.");
+    }
+
+    this._deselectObject();
+    el.remove();
+
+    this._triggerEvent('remove', { el });
+  }
+
+  /**
+   * Sposta un oggetto programmaticamente con animazione fluida.
+   * @param {string|HTMLElement} target - ID o elemento DOM dell'oggetto.
+   * @param {number} x - Nuova posizione coordinata X.
+   * @param {number} y - Nuova posizione coordinata Y.
+   */
+  moveBoardObject(target, x, y) {
+    const el = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!el) {
+      throw new Error("GameBoard: Oggetto specificato per lo spostamento non trovato.");
+    }
+
+    const objWidth = el.offsetWidth;
+    const objHeight = el.offsetHeight;
+
+    // Controllo dei limiti di .board-content
+    if (x < 0 || y < 0 || (x + objWidth) > this.baseWidth || (y + objHeight) > this.baseHeight) {
+      throw new Error("GameBoard: Impossibile spostare l'oggetto fuori dai confini del tavolo.");
+    }
+
+    el.classList.add('board-object--smooth-move');
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+
+    // Notifica l'evento
+    this._triggerEvent('move', { el, x, y });
+
+    setTimeout(() => {
+      el.classList.remove('board-object--smooth-move');
+    }, 300);
+
+    this._deselectObject();
+  }
 
   /**
    * Incrementa lo zoom di 1 livello (orientato al cursore se presente, altrimenti al centro).

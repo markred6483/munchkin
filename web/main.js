@@ -4,6 +4,8 @@ import { ChatWidget } from './chat.js';
 import { GameBoard } from './board.js';
 import { LoginForm } from './login.js';
 
+alert("Version 0.0.2");
+
 export var p2pRandom;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -19,6 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const chat = new ChatWidget();
   const socket = new P2PSocket();
 
+  board.on('move', e => console.log(`object ${e.el.id} moved to ${e.x};${e.y}`));
+  board.on('remove', e => console.log(`object ${e.el.id} deleted`));
+
   function hideGame() {
     board.hide();
     chat.hide();
@@ -32,7 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const content = board.getContentContainer();
 
     const card1 = document.createElement('div');
-    card1.className = 'game-card';
+    card1.id = 'card-center';
+    card1.className = 'game-card board-object removable-board-object';
     card1.style.left = '2400px';
     card1.style.top = '2375px';
     card1.innerHTML = `
@@ -41,7 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
 
     const card2 = document.createElement('div');
-    card2.className = 'game-card';
+    card2.id = 'card-spell';
+    card2.className = 'game-card board-object';
     card2.style.left = '2620px';
     card2.style.top = '2375px';
     card2.style.background = 'linear-gradient(135deg, #ec4899, #d946ef)';
@@ -52,6 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     content.appendChild(card1);
     content.appendChild(card2);
+
+    setTimeout(() => board.removeBoardObject('card-center'), 500);
+    setTimeout(() => board.moveBoardObject('card-spell', 2000, 2000), 1000);
+    setTimeout(() => board.moveBoardObject('card-center', 1000, 1000), /*causes exception*/ 1500);
+    setTimeout(() => board.removeBoardObject('card-spell'), /*causes exception*/ 2000);
   }
 
   // Gestione evento login tramite il componente LoginForm
