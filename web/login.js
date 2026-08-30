@@ -30,7 +30,7 @@ export class LoginForm {
   _initDOM() {
     this.container.innerHTML = `
       <div class="login-box">
-        <h2 class="login-title">PeerJS Game</h2>
+        <h2 class="login-title">Login</h2>
         <input type="text" id="peer-input" class="login-input" placeholder="Il tuo nome..." autocomplete="off" spellcheck="false" />
         <p class="login-hint">Premi Invio per entrare</p>
       </div>

@@ -53,6 +53,8 @@ export class DeckManager {
     this.container.className = 'deck-manager-container';
     this.container.style.display = 'none';
 
+    const selectFilePrompt = 'Choose the folder containing the .deck file...';
+
     this.container.innerHTML = `
       <div class="deck-manager-box">
         <div class="deck-manager-header">
@@ -60,8 +62,9 @@ export class DeckManager {
           <button class="deck-manager-btn-icon deck-manager-btn-close" id="deck-close-btn" title="Close">${ICONS.close}</button>
         </div>
         <div class="deck-manager-action-bar">
-          <label class="deck-manager-file-label" for="deck-file-input">Choose .zip, .deck or folder...</label>
           <input type="file" id="deck-file-input" class="deck-manager-file-input" multiple webkitdirectory />
+          <label class="deck-manager-file-label" for="deck-file-input">${selectFilePrompt}</label>
+          <input type="file" id="deck-file-input" class="deck-manager-file-input" webkitdirectory />
           <button class="deck-manager-btn-icon deck-manager-btn-upload" id="deck-upload-btn" title="Upload">${ICONS.upload}</button>
         </div>
         <div class="deck-manager-error" id="deck-error-msg"></div>
@@ -88,9 +91,8 @@ export class DeckManager {
 
     this.fileInput.addEventListener('change', (e) => {
       this.selectedFiles = Array.from(e.target.files);
-      this.fileLabel.textContent = this.selectedFiles.length > 0
-        ? `${this.selectedFiles.length} file(s) selected`
-        : 'Choose .zip, .deck or folder...';
+      this.fileLabel.textContent = this.selectedFiles.length > 0 ?
+        `${this.selectedFiles.length} file(s) selected` : selectFilePrompt;
       this._hideError();
     });
 

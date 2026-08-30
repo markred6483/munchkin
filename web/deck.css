@@ -59,7 +59,7 @@
   color: var(--color-text-main);
   font-size: var(--font-size-lg);
   font-weight: 600;
-  margin: 0;
+  margin: 0 auto;
 }
 
 .deck-manager-action-bar {
@@ -132,16 +132,17 @@
 
 /* Varianti Pulsanti con sfondo semi-trasparente dinamico */
 .deck-manager-btn-close {
-  background: transparent;
+  background: var(--color-bg-surface);
   color: var(--color-text-muted);
 }
 .deck-manager-btn-close:hover {
-  color: var(--color-text-main);
+  background: var(--color-bg-surface-hover);
+  color: #fff;
 }
 
 .deck-manager-btn-upload {
   background: var(--color-primary-alpha);
-  color: var(--color-primary-light);
+  color: var(--color-primary);
 }
 .deck-manager-btn-upload:hover {
   background: var(--color-primary);
@@ -323,8 +324,6 @@
 }
 
 .deck-manager-icon-spinner {
-  width: 16px;
-  height: 16px;
   border: 2px solid var(--color-border);
   border-top-color: var(--color-primary);
   border-radius: 50%;
