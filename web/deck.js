@@ -14,14 +14,15 @@ export class DeckManager {
   //   - at the bottom, a list of decks available on IndexedDB
   //     - each list's item represents a DeckDescriptor saved on IndexedDB
   //       - show all the fields of the DeckDescriptor as "fieldName: value"
-  //       - show a green mark on the right if the deck is fully saved on IndexedDB, a loading mark otherwise
+  //       - show a green mark icon on the right if the deck is fully saved on IndexedDB, a loading icon otherwise
   //     - "No decks available" message if no DeckDescriptor has been saved on IndexedDB
   //     - each list's item can be expanded into a sub-list and collapsed
   //       - every list's item must be collapsed initially
   //       - only one sub-list can be expanded at once, if another one is expanded, the previous one gets collapsed
   //       - lazy-load (create) the sub-list's items only when expanding the list's item
   //       - destroy the sub-list's items when collapsing the list's item
-  //       - each sub-list's item represents a DeckResource (green mark if the deck is fully saved on IndexedDB, loading mark otherwise)
+  //       - each sub-list's item represents a DeckResource
+  //         - show a green mark icon on the right if the resource is saved on IndexedDB, loading icon otherwise
   //         - show a small preview of the blob on the left
   //           - all the previews must have the same fixed max-width and max-height
   //           - the preview must keep the correct width-height ratio
