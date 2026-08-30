@@ -166,7 +166,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-right: 4px;
   min-height: 150px;
 }
 
