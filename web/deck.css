@@ -188,6 +188,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .deck-manager-item-header {
@@ -316,6 +317,7 @@
 .deck-manager-section {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 6px;
+  overflow: hidden;
 }
 
 .deck-manager-section-header {
