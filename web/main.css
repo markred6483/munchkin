@@ -1,6 +1,60 @@
 /* ==========================================================================
-   GLOBAL BASE STYLES
+   GLOBAL BASE & THEME VARIABLES
    ========================================================================== */
+
+:root {
+  /* Typography */
+  --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-size-xs: 10px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+
+  /* Color Palette (Solidi e uniformati) */
+  --color-bg-base: #121214;
+  --color-bg-modal: #18181c;        /* Ricalcolato: ~95% opacità su #121214 */
+  --color-bg-overlay: #121214bf;     /* 75% opacità su sfondi scuri per overlay */
+  --color-bg-card: #2e2e38;
+  --color-bg-card-hover: #363642;
+  --color-bg-section: #212128;
+  --color-bg-section-header: #2a2a34;
+  --color-bg-section-hover: #32323e;
+  --color-bg-subitem: #24242d;
+  --color-bg-sublist: #1b1b22;
+
+  /* Brand & Status Colors */
+  --color-primary: #6366f1;
+  --color-primary-light: #a5b4fc;
+  --color-success: #22c55e;
+  --color-success-dark: #16a34a;
+  --color-success-light: #86efac;
+  --color-danger: #ef4444;
+  --color-danger-dark: #dc2626;
+  --color-danger-light: #fca5a5;
+
+  /* Neutral Colors */
+  --color-text-main: #ffffff;
+  --color-text-muted: #8e8e9e;
+  --color-text-subtle: #a1a1aa;
+  --color-text-detail: #c7c7d0;
+  --color-text-field: #d1d5db;
+  --color-text-placeholder: #52525b;
+
+  /* Borders & Shadows */
+  --color-border: #ffffff1a;        /* 10% bianco */
+  --color-border-hover: #ffffff4d;  /* 30% bianco */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --shadow-modal: 0 20px 40px rgba(0, 0, 0, 0.6);
+  --shadow-focus: 0 0 0 3px rgba(99, 102, 241, 0.25);
+
+  /* Transitions */
+  --transition-fast: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
 
 html, body {
   margin: 0;
@@ -8,6 +62,6 @@ html, body {
   width: 100dvw;
   height: 100dvh;
   overflow: hidden;
-  background-color: #121214;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-bg-base);
+  font-family: var(--font-family-base);
 }

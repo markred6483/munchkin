@@ -23,21 +23,26 @@ export class DeckManager {
     };
 
     this.expandedDeckId = null;
-    this.expandedSectionKey = null; // Single active sub-section key e.g., "deckId:rules"
+    this.expandedSectionKey = null;
     this.selectedFiles = [];
 
-    if (!containerSelector) {
-      this.container = document.createElement('div');
-      document.body.appendChild(this.container);
-    } else if (typeof containerSelector === 'string') {
-      this.container = document.querySelector(containerSelector);
-    } else {
-      this.container = containerSelector;
-    }
-
+    this._resolveContainer(containerSelector);
     this._initDOM();
     this._bindEvents();
     this.refreshList();
+  }
+
+  /**
+   * Gestisce l'aggancio dell'elemento container principale.
+   * @private
+   */
+  _resolveContainer(selector) {
+    if (!selector) {
+      this.container = document.createElement('div');
+      document.body.appendChild(this.container);
+    } else {
+      this.container = typeof selector === 'string' ? document.querySelector(selector) : selector;
+    }
   }
 
   _initDOM() {
@@ -75,11 +80,9 @@ export class DeckManager {
 
     this.fileInput.addEventListener('change', (e) => {
       this.selectedFiles = Array.from(e.target.files);
-      if (this.selectedFiles.length > 0) {
-        this.fileLabel.textContent = `${this.selectedFiles.length} file(s) selected`;
-      } else {
-        this.fileLabel.textContent = 'Choose .zip, .deck or folder...';
-      }
+      this.fileLabel.textContent = this.selectedFiles.length > 0
+        ? `${this.selectedFiles.length} file(s) selected`
+        : 'Choose .zip, .deck or folder...';
       this._hideError();
     });
 
@@ -106,8 +109,7 @@ export class DeckManager {
 
     try {
       let descriptorObj = null;
-      let resourceFilesMap = new Map();
-
+      const resourceFilesMap = new Map();
       const isZip = this.selectedFiles.length === 1 && this.selectedFiles[0].name.endsWith('.zip');
 
       if (isZip) {
@@ -118,15 +120,10 @@ export class DeckManager {
         }
       } else {
         const deckFiles = this.selectedFiles.filter(f => f.name.endsWith('.deck'));
-        if (deckFiles.length === 0) {
-          throw new Error("No .deck file found in selection.");
-        }
-        if (deckFiles.length > 1) {
-          throw new Error("Multiple .deck files detected. Only one .deck descriptor is allowed.");
-        }
+        if (deckFiles.length === 0) throw new Error("No .deck file found in selection.");
+        if (deckFiles.length > 1) throw new Error("Multiple .deck files detected. Only one .deck descriptor is allowed.");
 
-        const deckFile = deckFiles[0];
-        const deckText = await deckFile.text();
+        const deckText = await deckFiles[0].text();
         descriptorObj = JSON.parse(deckText);
 
         const relativeFiles = new Map();
@@ -140,9 +137,7 @@ export class DeckManager {
         const requiredUris = this._getRequiredResourceUris(descriptorObj);
         for (const uri of requiredUris) {
           const matchedFile = relativeFiles.get(uri);
-          if (!matchedFile) {
-            throw new Error(`Missing referenced resource file: ${uri}`);
-          }
+          if (!matchedFile) throw new Error(`Missing referenced resource file: ${uri}`);
           resourceFilesMap.set(uri, matchedFile);
         }
       }
@@ -154,9 +149,7 @@ export class DeckManager {
       }
 
       await this.repo.saveDescriptor(descriptor);
-      if (this.callbacks.descriptorUploaded) {
-        this.callbacks.descriptorUploaded(descriptor);
-      }
+      if (this.callbacks.descriptorUploaded) this.callbacks.descriptorUploaded(descriptor);
 
       this.expandedDeckId = descriptor.id;
       this.expandedSectionKey = null;
@@ -170,15 +163,11 @@ export class DeckManager {
           blob: blobOrFile
         });
         await this.repo.saveResource(resource);
-        if (this.callbacks.resourceUploaded) {
-          this.callbacks.resourceUploaded(resource);
-        }
+        if (this.callbacks.resourceUploaded) this.callbacks.resourceUploaded(resource);
         await this.refreshList();
       }
 
-      if (this.callbacks.deckUploaded) {
-        this.callbacks.deckUploaded(descriptor);
-      }
+      if (this.callbacks.deckUploaded) this.callbacks.deckUploaded(descriptor);
     } catch (err) {
       this._showError(err.message);
     }
@@ -188,13 +177,10 @@ export class DeckManager {
     const uris = new Set();
     const isRemote = (uri) => uri && (uri.startsWith('http:') || uri.startsWith('https:'));
 
-    if (descriptor.cover && !isRemote(descriptor.cover)) {
-      uris.add(descriptor.cover);
-    }
+    if (descriptor.cover && !isRemote(descriptor.cover)) uris.add(descriptor.cover);
+
     if (Array.isArray(descriptor.rules)) {
-      descriptor.rules.forEach(r => {
-        if (r.uri && !isRemote(r.uri)) uris.add(r.uri);
-      });
+      descriptor.rules.forEach(r => { if (r.uri && !isRemote(r.uri)) uris.add(r.uri); });
     }
     if (Array.isArray(descriptor.cards)) {
       descriptor.cards.forEach(c => {
@@ -222,50 +208,39 @@ export class DeckManager {
       const requiredUris = this._getRequiredResourceUris(desc);
       const isFullySaved = requiredUris.size === resources.length;
 
-      // Primary header
-      const headerEl = document.createElement('div');
-      headerEl.className = 'deck-manager-item-header';
+      // Generazione dinamica dei campi chiave/valore puliti
+      const fieldsHtml = Object.keys(desc)
+        .filter(key => key !== 'cards' && key !== 'rules')
+        .map(key => `<div class="deck-manager-field-line"><span class="deck-manager-field-key">${key}:</span> ${desc[key] ?? ''}</div>`)
+        .join('');
 
-      const leftEl = document.createElement('div');
-      leftEl.className = 'deck-manager-item-left';
+      itemEl.innerHTML = `
+        <div class="deck-manager-item-header">
+          <div class="deck-manager-item-left">
+            <div class="deck-manager-fields">${fieldsHtml}</div>
+          </div>
+          <div class="deck-manager-controls">
+            <div class="deck-manager-actions">
+              ${isFullySaved ? `<button class="deck-manager-btn-icon deck-manager-btn-load" title="Load">${ICONS.load}</button>` : ''}
+              <button class="deck-manager-btn-icon deck-manager-btn-delete" title="Delete">${ICONS.delete}</button>
+            </div>
+            <span class="deck-manager-icon ${isFullySaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}">${isFullySaved ? '✓' : ''}</span>
+          </div>
+        </div>
+      `;
 
-      // All fields shown as key: value (excluding array attributes)
-      const fieldsEl = document.createElement('div');
-      fieldsEl.className = 'deck-manager-fields';
-      Object.keys(desc).forEach(key => {
-        if (key === 'cards' || key === 'rules') return;
-        const line = document.createElement('div');
-        line.className = 'deck-manager-field-line';
-        const val = desc[key] !== null && desc[key] !== undefined ? desc[key] : '';
-        line.innerHTML = `<span class="deck-manager-field-key">${key}:</span> ${val}`;
-        fieldsEl.appendChild(line);
-      });
-
-      leftEl.appendChild(fieldsEl);
-
-      const controlsEl = document.createElement('div');
-      controlsEl.className = 'deck-manager-controls';
-
-      const actionsEl = document.createElement('div');
-      actionsEl.className = 'deck-manager-actions';
-
-      if (isFullySaved) {
-        const loadBtn = document.createElement('button');
-        loadBtn.className = 'deck-manager-btn-icon deck-manager-btn-load';
-        loadBtn.title = 'Load';
-        loadBtn.innerHTML = ICONS.load;
-        loadBtn.onclick = (e) => {
+      // Event listener sul bottone Load (se presente)
+      const loadBtn = itemEl.querySelector('.deck-manager-btn-load');
+      if (loadBtn) {
+        loadBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           if (this.callbacks.deckSelected) this.callbacks.deckSelected(desc);
-        };
-        actionsEl.appendChild(loadBtn);
+        });
       }
 
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'deck-manager-btn-icon deck-manager-btn-delete';
-      deleteBtn.title = 'Delete';
-      deleteBtn.innerHTML = ICONS.delete;
-      deleteBtn.onclick = async (e) => {
+      // Event listener sul bottone Delete
+      const deleteBtn = itemEl.querySelector('.deck-manager-btn-delete');
+      deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         await this.repo.deleteResourcesByDeck(desc.id);
         await this.repo.deleteDescriptor(desc.id);
@@ -274,66 +249,46 @@ export class DeckManager {
           this.expandedSectionKey = null;
         }
         this.refreshList();
-      };
-      actionsEl.appendChild(deleteBtn);
+      });
 
-      const statusIcon = document.createElement('span');
-      statusIcon.className = `deck-manager-icon ${isFullySaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}`;
-      statusIcon.innerHTML = isFullySaved ? '✓' : '';
-
-      controlsEl.appendChild(actionsEl);
-      controlsEl.appendChild(statusIcon);
-
-      headerEl.appendChild(leftEl);
-      headerEl.appendChild(controlsEl);
-      itemEl.appendChild(headerEl);
-
-      headerEl.onclick = () => {
-        if (this.expandedDeckId === desc.id) {
-          this.expandedDeckId = null;
-          this.expandedSectionKey = null;
-        } else {
-          this.expandedDeckId = desc.id;
-          this.expandedSectionKey = null;
-        }
+      // Toggle accordion del mazzo principale
+      const headerEl = itemEl.querySelector('.deck-manager-item-header');
+      headerEl.addEventListener('click', () => {
+        this.expandedDeckId = (this.expandedDeckId === desc.id) ? null : desc.id;
+        this.expandedSectionKey = null;
         this.refreshList();
-      };
+      });
 
-      // Expandable Sub-sections container
+      // Sotto-sezioni espandibili
       if (this.expandedDeckId === desc.id) {
         const sectionsContainer = document.createElement('div');
         sectionsContainer.className = 'deck-manager-sections';
 
-        // 1. Rules Section
+        // Section Rules
         sectionsContainer.appendChild(
           this._createSubSection(desc.id, 'rules', `Rules (${desc.rules.length})`, () => {
             const list = document.createElement('div');
             list.className = 'deck-manager-sublist';
-            desc.rules.forEach(rule => {
-              const ruleEl = document.createElement('div');
-              ruleEl.className = 'deck-manager-subitem';
-              ruleEl.innerHTML = `
+            list.innerHTML = desc.rules.map(rule => `
+              <div class="deck-manager-subitem">
                 <div class="deck-manager-fields">
                   ${rule.title ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">title:</span> ${rule.title}</div>` : ''}
                   ${rule.text ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">text:</span> ${rule.text}</div>` : ''}
                   ${rule.uri ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">uri:</span> ${rule.uri}</div>` : ''}
                 </div>
-              `;
-              list.appendChild(ruleEl);
-            });
+              </div>
+            `).join('');
             return list;
           })
         );
 
-        // 2. Cards Section
+        // Section Cards
         sectionsContainer.appendChild(
           this._createSubSection(desc.id, 'cards', `Cards (${desc.cards.length})`, () => {
             const list = document.createElement('div');
             list.className = 'deck-manager-sublist';
-            desc.cards.forEach(card => {
-              const cardEl = document.createElement('div');
-              cardEl.className = 'deck-manager-subitem';
-              cardEl.innerHTML = `
+            list.innerHTML = desc.cards.map(card => `
+              <div class="deck-manager-subitem">
                 <div class="deck-manager-fields">
                   <div class="deck-manager-field-line"><span class="deck-manager-field-key">id:</span> ${card.id}</div>
                   ${card.title ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">title:</span> ${card.title}</div>` : ''}
@@ -341,56 +296,40 @@ export class DeckManager {
                   ${card.front ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">front:</span> ${card.front}</div>` : ''}
                   ${card.back ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">back:</span> ${card.back}</div>` : ''}
                 </div>
-              `;
-              list.appendChild(cardEl);
-            });
+              </div>
+            `).join('');
             return list;
           })
         );
 
-        // 3. Resources Section
+        // Section Resources
         sectionsContainer.appendChild(
           this._createSubSection(desc.id, 'resources', `Resources (${requiredUris.size})`, () => {
             const list = document.createElement('div');
             list.className = 'deck-manager-sublist';
+
             for (const uri of requiredUris) {
+              const res = resources.find(r => r.uri === uri);
+              const isSaved = !!res;
               const resItem = document.createElement('div');
               resItem.className = 'deck-manager-subitem';
 
-              const res = resources.find(r => r.uri === uri);
-              const isSaved = !!res;
+              const imgSrc = (isSaved && res.blob) ? URL.createObjectURL(res.blob) : null;
 
-              const leftBox = document.createElement('div');
-              leftBox.className = 'deck-manager-subitem-left';
-
-              const resFrame = document.createElement('div');
-              resFrame.className = 'deck-manager-preview-frame';
-
-              if (isSaved && res.blob) {
-                const preview = document.createElement('img');
-                preview.className = 'deck-manager-preview';
-                preview.src = URL.createObjectURL(res.blob);
-                resFrame.appendChild(preview);
-              } else {
-                resFrame.innerHTML = '<span class="deck-manager-preview-placeholder">N/A</span>';
-              }
-
-              leftBox.appendChild(resFrame);
-
-              const infoBox = document.createElement('div');
-              infoBox.className = 'deck-manager-fields';
-              infoBox.innerHTML = `
-                <div class="deck-manager-field-line"><span class="deck-manager-field-key">uri:</span> ${uri}</div>
-                <div class="deck-manager-field-line"><span class="deck-manager-field-key">type:</span> ${res ? res.type : 'N/A'}</div>
+              resItem.innerHTML = `
+                <div class="deck-manager-subitem-left">
+                  <div class="deck-manager-preview-frame">
+                    ${imgSrc
+                      ? `<img class="deck-manager-preview" src="${imgSrc}" />`
+                      : `<span class="deck-manager-preview-placeholder">N/A</span>`}
+                  </div>
+                  <div class="deck-manager-fields">
+                    <div class="deck-manager-field-line"><span class="deck-manager-field-key">uri:</span> ${uri}</div>
+                    <div class="deck-manager-field-line"><span class="deck-manager-field-key">type:</span> ${res ? res.type : 'N/A'}</div>
+                  </div>
+                </div>
+                <span class="deck-manager-icon ${isSaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}">${isSaved ? '✓' : ''}</span>
               `;
-              leftBox.appendChild(infoBox);
-
-              const resIcon = document.createElement('span');
-              resIcon.className = `deck-manager-icon ${isSaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}`;
-              resIcon.innerHTML = isSaved ? '✓' : '';
-
-              resItem.appendChild(leftBox);
-              resItem.appendChild(resIcon);
               list.appendChild(resItem);
             }
             return list;
@@ -409,22 +348,20 @@ export class DeckManager {
     const sectionEl = document.createElement('div');
     sectionEl.className = 'deck-manager-section';
 
-    const sectionHeader = document.createElement('div');
-    sectionHeader.className = 'deck-manager-section-header';
     const isExpanded = this.expandedSectionKey === sectionKey;
-    sectionHeader.innerHTML = `<span>${title}</span><span>${isExpanded ? '▲' : '▼'}</span>`;
+    sectionEl.innerHTML = `
+      <div class="deck-manager-section-header">
+        <span>${title}</span>
+        <span>${isExpanded ? '▲' : '▼'}</span>
+      </div>
+    `;
 
-    sectionHeader.onclick = (e) => {
+    const sectionHeader = sectionEl.querySelector('.deck-manager-section-header');
+    sectionHeader.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (this.expandedSectionKey === sectionKey) {
-        this.expandedSectionKey = null;
-      } else {
-        this.expandedSectionKey = sectionKey;
-      }
+      this.expandedSectionKey = isExpanded ? null : sectionKey;
       this.refreshList();
-    };
-
-    sectionEl.appendChild(sectionHeader);
+    });
 
     if (isExpanded) {
       sectionEl.appendChild(contentBuilder());
@@ -492,29 +429,13 @@ export class DeckManager {
     };
   }
 
-  onDeckDescriptorUploaded(callback) {
-    this.callbacks.descriptorUploaded = callback;
-  }
+  onDeckDescriptorUploaded(callback) { this.callbacks.descriptorUploaded = callback; }
+  onDeckResourceUploaded(callback) { this.callbacks.resourceUploaded = callback; }
+  onDeckUploaded(callback) { this.callbacks.deckUploaded = callback; }
+  onDeckSelected(callback) { this.callbacks.deckSelected = callback; }
 
-  onDeckResourceUploaded(callback) {
-    this.callbacks.resourceUploaded = callback;
-  }
-
-  onDeckUploaded(callback) {
-    this.callbacks.deckUploaded = callback;
-  }
-
-  onDeckSelected(callback) {
-    this.callbacks.deckSelected = callback;
-  }
-
-  show() {
-    this.container.style.display = 'flex';
-  }
-
-  hide() {
-    this.container.style.display = 'none';
-  }
+  show() { this.container.style.display = 'flex'; }
+  hide() { this.container.style.display = 'none'; }
 }
 
 export class DeckDescriptor {
@@ -530,7 +451,7 @@ export class DeckDescriptor {
 
     if (!args.cards) throw new Error(`Empty deck: ${args.id}`);
     const cardIds = new Set();
-    for (let rawCard of args.cards) {
+    for (const rawCard of args.cards) {
       const card = new CardDescriptor(rawCard);
       if (cardIds.has(card.id)) throw new Error(`Duplicate card: ${card.id}`);
       cardIds.add(card.id);
@@ -539,7 +460,7 @@ export class DeckDescriptor {
 
     if (args.rules) {
       const ruleUris = new Set();
-      for (let rawRule of args.rules) {
+      for (const rawRule of args.rules) {
         const rule = new RuleDescriptor(rawRule);
         if (rule.uri && ruleUris.has(rule.uri)) throw new Error(`Duplicate rule: ${rule.uri}`);
         if (rule.uri) ruleUris.add(rule.uri);
@@ -549,8 +470,7 @@ export class DeckDescriptor {
   }
 
   equals(other) {
-    if (!(other instanceof DeckDescriptor)) return false;
-    return JSON.stringify(this) === JSON.stringify(other);
+    return other instanceof DeckDescriptor && JSON.stringify(this) === JSON.stringify(other);
   }
 }
 
@@ -566,8 +486,7 @@ export class RuleDescriptor {
   }
 
   equals(other) {
-    if (!(other instanceof RuleDescriptor)) return false;
-    return JSON.stringify(this) === JSON.stringify(other);
+    return other instanceof RuleDescriptor && JSON.stringify(this) === JSON.stringify(other);
   }
 }
 
@@ -585,8 +504,7 @@ export class CardDescriptor {
   }
 
   equals(other) {
-    if (!(other instanceof CardDescriptor)) return false;
-    return JSON.stringify(this) === JSON.stringify(other);
+    return other instanceof CardDescriptor && JSON.stringify(this) === JSON.stringify(other);
   }
 }
 
@@ -603,7 +521,9 @@ export class DeckResource {
   }
 
   equals(other) {
-    if (!(other instanceof DeckResource)) return false;
-    return this.deck === other.deck && this.uri === other.uri && this.type === other.type;
+    return other instanceof DeckResource &&
+           this.deck === other.deck &&
+           this.uri === other.uri &&
+           this.type === other.type;
   }
 }
