@@ -1,0 +1,64 @@
+issues:
+- il menu contestuale degli oggetti sul tavolo potrebbe andare fuori schermo in alto
+- lo spostamento degli oggetti non è proprio user-friendly su mobile, perché quando si tenta di spostare la schermata, l'oggetto si sgancia
+- il menu dello zoom è un po' in mezzo alle palle, ci dovrebbe essere la possibilità di nasconderlo/mostrarlo
+- per sbaglio si seleziona il testo nella board
+- la chat non è esattamente armonica con il resto della pagina
+- GameBoard.addBoardObject
+
+TODO high privilege actions.
+I have a p2p web application.
+No centralized beckend nor database is available, just the web server, serving the web page with https protocol, is centralized, but it's static.
+The p2p network is full mesh.
+Peers exchange messages to change other peers' application state.
+There are some actions that I don't want everybody to execute though.
+Only high-privilege peers should be able to perform those actions.
+So, upon receiving a high-privilege action message, a peer should process it only if the sender has high-privileges.
+For a peer, for example PeerA, to aquire high-privileges towards another peer, for example PeerB, PeerA must follow a secure process.
+My idea is to store a public key on the web page that everybody can read.
+The challenge is as follows:
+1) PeerA sends a high-privilege aquisition initiation request to PeerB
+2) PeerB checks whether a high-privilege aquisition request from PeerA is already pending (not expired); if so it reuses the old record (go to step 4)
+3) PeerB creates a random nonce and saves a record in-memory containing:
+3a) the nonce
+3b) the timestamp (local clock) of the creation of the nonce
+3c) the time-to-live of the nonce
+3d) the ID of the initiator, being PeerA
+4) PeerB sends the nonce to PeerA
+5) PeerA then responds with a message containing:
+5a) the nonce
+5b) the signed concatenation of the nonce + PeerA's ID, signed with the private key corresponding to the public key on the web page
+6) PeerB, upon receiving the message above, will burn the in-memory nonce record
+7) PeerB verifies:
+7a) whether the peer ID in the last message corresponds to PeerA's ID
+7b) whether the nonce is still valid (not expired), calculating the difference between the saved timestamp (local clock) and the current timestamp (local clock)
+7c) wheter the requester of the nonce corresponds to the high-privilege action initial requester
+7d) whether the signature matches the public key
+8) If the checks of the previous step pass, the PeerB will consider PeerA a high-privilege peer from now on
+What do you think about this idea?
+
+
+DONE
+Crea un file "db.js" che usa moduli ES6 (import e export) e che dichiari le classi DeckRepository e GameRepository.
+Questo modulo verrà referenziato (import) in più moduli già esistenti dell'applicazione web, che dovranno tutti poter interrogare le stesse tabelle, quindi usa il design pattern Singleton: quando chiamo new, deve essere tornata l'istanza già esistente se presente.
+La classe GameRepository deve solo essere abbozzata (aggancio al DB ed eventuale altro boilerplate), il resto dell'implementazione verrà fatta in un secondo momento.
+Le tabelle su cui insiste DeckRepository sono:
+- deck-descriptors: contenente oggetti di tipo DeckDescriptor
+- deck-resources: contenente oggetti di tipo DeckResource
+I metodi pubblici (da implementare asincroni se conveniente) di DeckRepository devono permettere:
+- verifica (true/false) esistenza di un singolo descriptor dato l'id del deck
+- verifica (true/false) esistenza di una singola resource dato il suo uri
+- salvataggio di un singolo descriptor; lancia errore se già esistente con lo stesso id deck
+- salvataggio di una singola resource; lancia errore se già esistente con lo stesso uri
+- salvataggio di una lista di resource; se alcune di queste già esistono, vincono quelle già esistenti
+- aggiornamento di un singolo descriptor; lancia errore se non esiste, altrimenti torna l'oggetto vecchio
+- aggiornamento di una singola resource; lancia errore se non esiste, altrimenti torna l'oggetto vecchio
+- aggiornamento di tante resource; se una o più risorse non esistono, salvale
+- estrazione di un singolo descriptor dato l'id del deck; lancia errore se non esiste
+- estrazione di una singola resource dato il suo uri; lancia errore se non esiste
+- eliminazione di un singolo descriptor dato l'id del deck; lancia errore se non esisteva, altrimenti torna l'oggetto eliminato
+- eliminazione di una singola resource dato il suo uri; lancia errore se non esisteva, altrimenti torna l'oggetto eliminato
+- eliminazione di tante resource dato l'id del deck; se non ne esisteva nemmeno una non succede nulla.
+Valuta la definizione di eventuali indici aggiuntivi oltre alle chiavi primarie per rendere più efficienti le operazioni di cui sopra.
+Usa la versione 4 della libreria Dexie (https://cdn.jsdelivr.net/.../+esm) per implementare il modulo.
+Fornisci anche un esempio pratico di utilizzo di DeckRepository.

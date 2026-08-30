@@ -3,6 +3,7 @@ import { P2PRandom } from './p2p_random.js';
 import { ChatWidget } from './chat.js';
 import { GameBoard } from './board.js';
 import { LoginForm } from './login.js';
+import { DeckManager } from './deck.js';
 
 alert("Version 0.0.2");
 
@@ -32,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function showGame() {
     board.show();
     chat.show();
-
+    deckManager = new DeckManager();
     // Inserimento elementi di esempio (Carte di Gioco) posizionati in modo assoluto
     const content = board.getContentContainer();
 

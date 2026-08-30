@@ -63,6 +63,10 @@ export class DeckRepository {
         return item;
     }
 
+    async getAllDescriptors() {
+        // TODO
+    }
+
     async deleteDescriptor(id) {
         return await this.db.transaction('rw', this.tableDescriptors, async () => {
             const old = await this.tableDescriptors.get(id);
@@ -133,6 +137,10 @@ export class DeckRepository {
         return item;
     }
 
+    async getResourcesByDeck(deckId) {
+        // TODO
+    }
+
     async deleteResource(uri) {
         return await this.db.transaction('rw', this.tableResources, async () => {
             const old = await this.tableResources.get(uri);
@@ -151,6 +159,9 @@ export class DeckRepository {
 }
 
 export class GameRepository {
+
+    // TOBE Let's do this another time, not now
+    
     constructor() {
         if (gameRepoInstance) {
             return gameRepoInstance;
