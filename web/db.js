@@ -100,8 +100,8 @@ export class DeckRepository {
         if (!Array.isArray(resources)) return;
         await this.db.transaction('rw', this.tableResources, async () => {
             for (const res of resources) {
-                const exists = await this.hasResource(res.uri);
-                if (!exists) {
+                const count = await this.tableResources.where('uri').equals(res.uri).count();
+                if (count === 0) {
                     await this.tableResources.add(res);
                 }
             }
