@@ -20,8 +20,7 @@
   user-select: none;
   font-family: var(--font-family-base);
   padding: 20px;
-  /* Forza padding e border a rientrare nelle dimensioni totali dichiarate di width e height */
-  box-sizing: border-box;
+  box-sizing: border-border-box;
 }
 
 .deck-manager-box {
@@ -57,6 +56,7 @@
 }
 
 .deck-manager-title {
+  color: var(--color-text-main);
   font-size: var(--font-size-lg);
   font-weight: 600;
   margin: 0;
@@ -78,7 +78,7 @@
 .deck-manager-file-label {
   /* Fa sì che la label prenda tutto lo spazio orizzontale rimanente nell'action bar */
   flex: 1;
-  background: var(--color-bg-card);
+  background: var(--color-bg-surface);
   border: 1px dashed var(--color-border-hover);
   color: var(--color-text-subtle);
   font-size: var(--font-size-sm);
@@ -95,13 +95,13 @@
 
 .deck-manager-file-label:hover {
   border-color: var(--color-primary);
-  background: var(--color-bg-card-hover);
+  background: var(--color-bg-surface-hover);
   color: var(--color-text-main);
 }
 
 /* Icon Buttons base */
 .deck-manager-btn-icon {
-  background: var(--color-bg-card);
+  background: var(--color-bg-surface);
   border: 1px solid transparent;
   color: var(--color-text-main);
   width: 36px;
@@ -120,7 +120,7 @@
 }
 
 .deck-manager-btn-icon:hover {
-  background: var(--color-bg-card-hover);
+  background: var(--color-bg-surface-hover);
 }
 
 .deck-manager-btn-icon svg {
@@ -191,8 +191,8 @@
   gap: 10px;
   padding-right: 4px;
   scrollbar-width: thin;
-  /*scrollbar-gutter: stable both-edges;*/
   scrollbar-color: var(--color-border) transparent;
+  /*scrollbar-gutter: stable both-edges;*/
 }
 
 .deck-manager-empty {
@@ -203,7 +203,7 @@
 }
 
 .deck-manager-item {
-  background: var(--color-bg-card);
+  background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   /* Mantiene costante l'altezza dell'elemento lista durante il rendering */
@@ -224,7 +224,7 @@
 }
 
 .deck-manager-item-header:hover {
-  background: var(--color-bg-card-hover);
+  background: var(--color-bg-surface-hover);
 }
 
 .deck-manager-item-left {
@@ -242,7 +242,7 @@
   width: 48px;
   height: 48px;
   border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-bg-subtle);
   border: 1px solid var(--color-border);
   /* Centra l'immagine/placeholder al suo interno */
   display: flex;
@@ -338,7 +338,7 @@
 
 /* Collapsible Sub-Sections */
 .deck-manager-sections {
-  background: var(--color-bg-section);
+  background: var(--color-bg-subtle);
   border-top: 1px solid var(--color-border);
   padding: 8px 12px;
   /* Dispone le sezioni trascinabili/espandibili in colonna */
@@ -354,7 +354,7 @@
 }
 
 .deck-manager-section-header {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-bg-surface);
   padding: 8px 12px;
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -368,7 +368,7 @@
 }
 
 .deck-manager-section-header:hover {
-  background: var(--color-bg-card-hover);
+  background: var(--color-bg-surface-hover);
   color: var(--color-text-main);
 }
 
@@ -385,7 +385,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-bg-subtle);
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   gap: 12px;

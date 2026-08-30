@@ -11,15 +11,19 @@
   --font-size-md: 16px;
   --font-size-lg: 18px;
 
-  /* Color Palette (Semi-trasparenti per scalabilità dinamica) */
+  /* Color Palette Generica con Trasparenze (Maggiore flessibilità nel visual design) */
   --color-bg-base: #121214;
   --color-bg-modal: rgba(24, 24, 28, 0.85);
   --color-bg-overlay: rgba(18, 18, 20, 0.75);
-  --color-bg-card: rgba(255, 255, 255, 0.05);
-  --color-bg-card-hover: rgba(255, 255, 255, 0.1);
-  --color-bg-section: rgba(0, 0, 0, 0.2);
+  --color-bg-surface: rgba(255, 255, 255, 0.05);
+  --color-bg-surface-hover: rgba(255, 255, 255, 0.1);
+  --color-bg-subtle: rgba(0, 0, 0, 0.25);
 
-  /* Brand & Status Colors con trasparenza coordinata */
+  /* Modificatori di Trasparenza */
+  --opacity-disabled: 0.5;
+  --opacity-subtle: 0.7;
+
+  /* Brand & Status Colors */
   --color-primary: #6366f1;
   --color-primary-alpha: rgba(99, 102, 241, 0.15);
   --color-primary-light: #a5b4fc;
@@ -30,20 +34,22 @@
   --color-danger: #ef4444;
   --color-danger-alpha: rgba(239, 68, 68, 0.15);
 
-  /* Neutrals */
-  --color-text-main: #f9fafb;
-  --color-text-muted: #9ca3af;
-  --color-text-subtle: #d1d5db;
+  /* Neutrals per i testi (Derivati tramite trasparenza) */
+  --color-text-main: rgba(255, 255, 255, 0.95);
+  --color-text-subtle: rgba(255, 255, 255, 0.75);
+  --color-text-muted: rgba(255, 255, 255, 0.45);
 
   /* Borders & Shadows */
   --color-border: rgba(255, 255, 255, 0.1);
   --color-border-hover: rgba(255, 255, 255, 0.25);
 
+  /* Radii Standardizzati */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-xl: 16px;
 
+  /* Shadows & FX */
   --shadow-modal: 0 20px 40px rgba(0, 0, 0, 0.6);
   --shadow-focus: 0 0 0 3px rgba(99, 102, 241, 0.3);
 

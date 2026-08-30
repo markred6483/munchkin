@@ -1,7 +1,7 @@
 import { DeckRepository } from './db.js';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
 
-// Icone SVG riutilizzabili
+// Icone SVG riutilizzabili per evitare duplicazioni nel DOM
 const ICONS = {
   upload: `<svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>`,
   delete: `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,
@@ -25,7 +25,6 @@ export class DeckManager {
     this.expandedDeckId = null;
     this.expandedSectionKey = null;
     this.selectedFiles = [];
-    this._objectUrls = []; // Track per evitare Memory Leak con URL.createObjectURL
 
     this._resolveContainer(containerSelector);
     this._initDOM();
@@ -107,15 +106,6 @@ export class DeckManager {
   _hideError() {
     this.errorEl.textContent = '';
     this.errorEl.style.display = 'none';
-  }
-
-  /**
-   * Pulisce gli URL degli oggetti Blob precedentemente allocati.
-   * @private
-   */
-  _clearObjectUrls() {
-    this._objectUrls.forEach(url => URL.revokeObjectURL(url));
-    this._objectUrls = [];
   }
 
   async _handleUpload() {
@@ -212,7 +202,6 @@ export class DeckManager {
    * Rigenera in modo reattivo la lista dei mazzi.
    */
   async refreshList() {
-    this._clearObjectUrls();
     const descriptors = await this.repo.getAllDescriptors();
     this.listEl.innerHTML = '';
 
@@ -323,7 +312,7 @@ export class DeckManager {
           })
         );
 
-        // Risorse con tracking dei BLOB per la memoria
+        // Risorse con revoca automatica dell'ObjectURL al caricamento dell'immagine (evita Memory Leak)
         sectionsContainer.appendChild(
           this._createSubSection(desc.id, 'resources', `Resources (${requiredUris.size})`, () => {
             const list = document.createElement('div');
@@ -335,17 +324,11 @@ export class DeckManager {
               const resItem = document.createElement('div');
               resItem.className = 'deck-manager-subitem';
 
-              let imgSrc = null;
-              if (isSaved && res.blob) {
-                imgSrc = URL.createObjectURL(res.blob);
-                this._objectUrls.push(imgSrc);
-              }
-
               resItem.innerHTML = `
                 <div class="deck-manager-subitem-left">
                   <div class="deck-manager-preview-frame">
-                    ${imgSrc
-                      ? `<img class="deck-manager-preview" src="${imgSrc}" alt="Resource Preview" />`
+                    ${isSaved && res.blob
+                      ? `<img class="deck-manager-preview" alt="Preview" />`
                       : `<span class="deck-manager-preview-placeholder">N/A</span>`}
                   </div>
                   <div class="deck-manager-fields">
@@ -355,6 +338,17 @@ export class DeckManager {
                 </div>
                 <span class="deck-manager-icon ${isSaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}">${isSaved ? '✓' : ''}</span>
               `;
+
+              // Revoca tempestiva della memoria Blob URL non appena la risorsa viene caricata
+              if (isSaved && res.blob) {
+                const imgEl = resItem.querySelector('.deck-manager-preview');
+                const objectUrl = URL.createObjectURL(res.blob);
+
+                imgEl.onload = () => URL.revokeObjectURL(objectUrl);
+                imgEl.onerror = () => URL.revokeObjectURL(objectUrl);
+                imgEl.src = objectUrl;
+              }
+
               list.appendChild(resItem);
             }
             return list;
@@ -460,10 +454,7 @@ export class DeckManager {
   onDeckSelected(callback) { this.callbacks.deckSelected = callback; }
 
   show() { this.container.style.display = 'flex'; }
-  hide() {
-    this._clearObjectUrls();
-    this.container.style.display = 'none';
-  }
+  hide() { this.container.style.display = 'none'; }
 }
 
 // Model Descriptor Classes

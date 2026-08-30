@@ -1,5 +1,5 @@
 /**
- * LoginForm - Gestore del form di accesso al gioco
+ * LoginForm - Gestore del form di accesso al gioco.
  */
 export class LoginForm {
   constructor(containerSelector = null) {
@@ -24,7 +24,7 @@ export class LoginForm {
   }
 
   /**
-   * Genera il markup dell'interfaccia.
+   * Genera la struttura HTML statica del form di login.
    * @private
    */
   _initDOM() {
@@ -40,7 +40,7 @@ export class LoginForm {
   }
 
   /**
-   * Configura gli eventi di input (Invio).
+   * Configura i listener per la gestione del submit (tasto Invio).
    * @private
    */
   _bindEvents() {
@@ -59,7 +59,7 @@ export class LoginForm {
   }
 
   /**
-   * Mostra il form di login e mette il focus sul campo di testo.
+   * Mostra il form di login e imposta il focus sul campo input.
    */
   show() {
     this.container.style.display = 'flex';
@@ -77,7 +77,7 @@ export class LoginForm {
   }
 
   /**
-   * Registra la callback da eseguire al submit del login.
+   * Registra la funzione di callback al completamento del login.
    * @param {Function} callback
    */
   onLogin(callback) {
