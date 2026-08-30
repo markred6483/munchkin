@@ -64,7 +64,7 @@ export class DeckRepository {
     }
 
     async getAllDescriptors() {
-        // TODO
+        return await this.tableDescriptors.toArray();
     }
 
     async deleteDescriptor(id) {
@@ -138,7 +138,7 @@ export class DeckRepository {
     }
 
     async getResourcesByDeck(deckId) {
-        // TODO
+        return await this.tableResources.where('deck').equals(deckId).toArray();
     }
 
     async deleteResource(uri) {
@@ -161,7 +161,7 @@ export class DeckRepository {
 export class GameRepository {
 
     // TOBE Let's do this another time, not now
-    
+
     constructor() {
         if (gameRepoInstance) {
             return gameRepoInstance;

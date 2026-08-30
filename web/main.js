@@ -33,7 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function showGame() {
     board.show();
     chat.show();
-    deckManager = new DeckManager();
+    let deckManager = new DeckManager();
+    deckManager.show();
     // Inserimento elementi di esempio (Carte di Gioco) posizionati in modo assoluto
     const content = board.getContentContainer();
 
