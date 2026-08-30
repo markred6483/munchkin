@@ -1,269 +1,492 @@
 import { DeckRepository } from './db.js';
-// TODO more imports if necessary
+import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
 
+/**
+ * DeckManager - UI component and operational handler for decks and deck resources.
+ */
 export class DeckManager {
+  constructor(containerSelector = null) {
+    this.repo = new DeckRepository();
+    this.callbacks = {
+      descriptorUploaded: null,
+      resourceUploaded: null,
+      deckUploaded: null,
+      deckSelected: null
+    };
 
-  // TODO documentation-like comments
+    this.expandedDeckId = null;
+    this.selectedFiles = [];
 
-  // TODO create the widget's DOM elements
-  // - dom elements must be created in this class
-  // - styles must be defined in the deck.css file; all the css classes should start with the prefix ".deck-manager-"
-  // - base styles must be similar to the LoginForm's styles
-  // - this widget must be hidden initially
-  // - the widget has the following elements:
-  //   - at the bottom, a list of decks available on IndexedDB
-  //     - each list's item represents a DeckDescriptor saved on IndexedDB
-  //       - show all the fields of the DeckDescriptor as "fieldName: value"
-  //       - show a green mark icon on the right if the deck is fully saved on IndexedDB, a loading icon otherwise
-  //       - show a "load" button on the left of the check mark/loading icon only if the deck is fully loaded
-  //       - show a "delete" button below the "load" button
-  //     - "No decks available" message if no DeckDescriptor has been saved on IndexedDB
-  //     - each list's item can be expanded into a sub-list and collapsed
-  //       - every list's item must be collapsed initially
-  //       - only one sub-list can be expanded at once, if another one is expanded, the previous one gets collapsed
-  //       - lazy-load (create) the sub-list's items only when expanding the list's item
-  //       - destroy the sub-list's items when collapsing the list's item
-  //       - each sub-list's item represents a DeckResource
-  //         - show a green mark icon on the right if the resource is saved on IndexedDB, loading icon otherwise
-  //         - show a small preview of the blob on the left
-  //           - all the previews must have the same fixed max-width and max-height
-  //           - the preview must keep the correct width-height ratio
-  //         - show all the "basic" fields (not the blob) of the DeckResource as "fieldName: value"
-  //         - show a green mark on the right if the DeckResource has been saved on IndexedDB, a loading mark otherwise
-  //   - on top, an action "bar" with:
-  //     - a file selection input on the left, to let the user select a "deck" from the filesystem
-  //       - the user can select a folder containing a .deck file representing a DeckDescriptor object and many PDFs or images (many types supported) representing the all the DeckResources referenced by the DeckDescriptor
-  //       - the user can select a .zip file containing a .deck file representing a DeckDescriptor object and many PDFs or images (many types supported) representing all the DeckResources referenced by the DeckDescriptor
-  //       - the user can select a list of files: a .deck file and all the DeckResources referenced by the DeckDescriptor
-  //       - if more than one .deck file is present, prompt an Error integrated in the widget
-  //       - if some DeckResources referenced by the DeckDescriptor are not present in the files, prompt an Error integrated in the widget
-  //       - if some selected files are not referenced by the DeckDescriptor, ignore them, filter them out
-  //     - an "upload" button on the right of the file input, to start the saving process
-  //       - save the DeckDescriptor and its DeckResources on IndexedDB
-  //       - show the new "pending" deck in the list of decks when the DeckDescriptor has been saved even if all or some DeckResources are still to be saved
-  //       - the new shown deck list item must be expanded to show all the DeckResources associated
-  //     - a "close" button on the right, to hide the widget
-  // - take care of the validation of DeckDescriptors and DeckResources
+    if (!containerSelector) {
+      this.container = document.createElement('div');
+      document.body.appendChild(this.container);
+    } else if (typeof containerSelector === 'string') {
+      this.container = document.querySelector(containerSelector);
+    } else {
+      this.container = containerSelector;
+    }
 
-  // public methods
-
-  compressDeck(descriptor, resources) {
-    // TODO
-    // compress (zip) an instance of DeckDescriptor and many instances of DeckResource into a .zip file (blob)
+    this._initDOM();
+    this._bindEvents();
+    this.refreshList();
   }
 
-  extractDeckObject(zip) {
-    // TODO
-    // extract (unzip) a DeckObject and many DeckResources objects from a .zip file (blob)
-    // if the argument is not a .zip file, throw error
-    // if the .zip file doesn't contain a .deck file, throw error
-    // if the .zip file contains files not referenced in the .deck file, ignore them
+  _initDOM() {
+    this.container.className = 'deck-manager-container';
+    this.container.style.display = 'none';
+
+    this.container.innerHTML = `
+      <div class="deck-manager-box">
+        <div class="deck-manager-action-bar">
+          <label class="deck-manager-file-label" for="deck-file-input">Choose .zip, .deck or deck folder...</label>
+          <input type="file" id="deck-file-input" class="deck-manager-file-input" multiple webkitdirectory />
+          <button class="deck-manager-btn" id="deck-upload-btn">Upload</button>
+          <button class="deck-manager-btn deck-manager-btn-close" id="deck-close-btn">✕</button>
+        </div>
+        <div class="deck-manager-error" id="deck-error-msg"></div>
+        <div class="deck-manager-list" id="deck-list-container"></div>
+      </div>
+    `;
+
+    this.fileInput = this.container.querySelector('#deck-file-input');
+    this.fileLabel = this.container.querySelector('.deck-manager-file-label');
+    this.uploadBtn = this.container.querySelector('#deck-upload-btn');
+    this.closeBtn = this.container.querySelector('#deck-close-btn');
+    this.errorEl = this.container.querySelector('#deck-error-msg');
+    this.listEl = this.container.querySelector('#deck-list-container');
+  }
+
+  _bindEvents() {
+    this.fileLabel.addEventListener('click', (e) => {
+      // Allows resetting input state on re-selection
+      this.fileInput.value = '';
+    });
+
+    this.fileInput.addEventListener('change', (e) => {
+      this.selectedFiles = Array.from(e.target.files);
+      if (this.selectedFiles.length > 0) {
+        this.fileLabel.textContent = `${this.selectedFiles.length} file(s) selected`;
+      } else {
+        this.fileLabel.textContent = 'Choose .zip, .deck or deck folder...';
+      }
+      this._hideError();
+    });
+
+    this.uploadBtn.addEventListener('click', () => this._handleUpload());
+    this.closeBtn.addEventListener('click', () => this.hide());
+  }
+
+  _showError(msg) {
+    this.errorEl.textContent = msg;
+    this.errorEl.style.display = 'block';
+  }
+
+  _hideError() {
+    this.errorEl.textContent = '';
+    this.errorEl.style.display = 'none';
+  }
+
+  async _handleUpload() {
+    this._hideError();
+    if (!this.selectedFiles || this.selectedFiles.length === 0) {
+      this._showError("Please select a deck file, folder, or zip archive.");
+      return;
+    }
+
+    try {
+      let descriptorObj = null;
+      let resourceFilesMap = new Map(); // uri -> File/Blob
+
+      const isZip = this.selectedFiles.length === 1 && this.selectedFiles[0].name.endsWith('.zip');
+
+      if (isZip) {
+        const extracted = await this.extractDeckObject(this.selectedFiles[0]);
+        descriptorObj = extracted.descriptor;
+        for (const res of extracted.resources) {
+          resourceFilesMap.set(res.uri, res.blob);
+        }
+      } else {
+        const deckFiles = this.selectedFiles.filter(f => f.name.endsWith('.deck'));
+        if (deckFiles.length === 0) {
+          throw new Error("No .deck file found in selection.");
+        }
+        if (deckFiles.length > 1) {
+          throw new Error("Multiple .deck files detected. Only one .deck descriptor is allowed.");
+        }
+
+        const deckFile = deckFiles[0];
+        const deckText = await deckFile.text();
+        descriptorObj = JSON.parse(deckText);
+
+        const relativeFiles = new Map();
+        for (const file of this.selectedFiles) {
+          const path = file.webkitRelativePath || file.name;
+          const cleanPath = path.includes('/') ? path.substring(path.indexOf('/') + 1) : path;
+          relativeFiles.set(cleanPath, file);
+          relativeFiles.set(file.name, file);
+        }
+
+        const requiredUris = this._getRequiredResourceUris(descriptorObj);
+        for (const uri of requiredUris) {
+          const matchedFile = relativeFiles.get(uri);
+          if (!matchedFile) {
+            throw new Error(`Missing referenced resource file: ${uri}`);
+          }
+          resourceFilesMap.set(uri, matchedFile);
+        }
+      }
+
+      const descriptor = new DeckDescriptor(descriptorObj);
+
+      if (await this.repo.hasDescriptor(descriptor.id)) {
+        throw new Error(`Deck '${descriptor.id}' already exists on IndexedDB.`);
+      }
+
+      await this.repo.saveDescriptor(descriptor);
+      if (this.callbacks.descriptorUploaded) {
+        this.callbacks.descriptorUploaded(descriptor);
+      }
+
+      this.expandedDeckId = descriptor.id;
+      await this.refreshList();
+
+      for (const [uri, blobOrFile] of resourceFilesMap.entries()) {
+        const resource = new DeckResource({
+          deck: descriptor.id,
+          uri: uri,
+          type: blobOrFile.type || 'application/octet-stream',
+          blob: blobOrFile
+        });
+        await this.repo.saveResource(resource);
+        if (this.callbacks.resourceUploaded) {
+          this.callbacks.resourceUploaded(resource);
+        }
+        await this.refreshList();
+      }
+
+      if (this.callbacks.deckUploaded) {
+        this.callbacks.deckUploaded(descriptor);
+      }
+    } catch (err) {
+      this._showError(err.message);
+    }
+  }
+
+  _getRequiredResourceUris(descriptor) {
+    const uris = new Set();
+    const isRemote = (uri) => uri && (uri.startsWith('http:') || uri.startsWith('https:'));
+
+    if (descriptor.cover && !isRemote(descriptor.cover)) {
+      uris.add(descriptor.cover);
+    }
+    if (Array.isArray(descriptor.rules)) {
+      descriptor.rules.forEach(r => {
+        if (r.uri && !isRemote(r.uri)) uris.add(r.uri);
+      });
+    }
+    if (Array.isArray(descriptor.cards)) {
+      descriptor.cards.forEach(c => {
+        if (c.front && !isRemote(c.front)) uris.add(c.front);
+        if (c.back && !isRemote(c.back)) uris.add(c.back);
+      });
+    }
+    return uris;
+  }
+
+  async refreshList() {
+    const descriptors = await this.repo.getAllDescriptors();
+    this.listEl.innerHTML = '';
+
+    if (descriptors.length === 0) {
+      this.listEl.innerHTML = '<div class="deck-manager-empty">No decks available</div>';
+      return;
+    }
+
+    for (const desc of descriptors) {
+      const itemEl = document.createElement('div');
+      itemEl.className = 'deck-manager-item';
+
+      const resources = await this.repo.getResourcesByDeck(desc.id);
+      const requiredUris = this._getRequiredResourceUris(desc);
+      const isFullySaved = requiredUris.size === resources.length;
+
+      const headerEl = document.createElement('div');
+      headerEl.className = 'deck-manager-item-header';
+
+      const fieldsEl = document.createElement('div');
+      fieldsEl.className = 'deck-manager-fields';
+      Object.keys(desc).forEach(key => {
+        if (key === 'cards' || key === 'rules') return;
+        const line = document.createElement('div');
+        line.className = 'deck-manager-field-line';
+        line.innerHTML = `<span class="deck-manager-field-key">${key}:</span> ${desc[key]}`;
+        fieldsEl.appendChild(line);
+      });
+
+      const controlsEl = document.createElement('div');
+      controlsEl.className = 'deck-manager-controls';
+
+      const actionsEl = document.createElement('div');
+      actionsEl.className = 'deck-manager-actions';
+
+      if (isFullySaved) {
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'deck-manager-btn';
+        loadBtn.textContent = 'Load';
+        loadBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (this.callbacks.deckSelected) this.callbacks.deckSelected(desc);
+        };
+        actionsEl.appendChild(loadBtn);
+      }
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'deck-manager-btn deck-manager-btn-delete';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = async (e) => {
+        e.stopPropagation();
+        await this.repo.deleteResourcesByDeck(desc.id);
+        await this.repo.deleteDescriptor(desc.id);
+        if (this.expandedDeckId === desc.id) this.expandedDeckId = null;
+        this.refreshList();
+      };
+      actionsEl.appendChild(deleteBtn);
+
+      const statusIcon = document.createElement('span');
+      statusIcon.className = `deck-manager-icon ${isFullySaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}`;
+      statusIcon.innerHTML = isFullySaved ? '✓' : '';
+
+      controlsEl.appendChild(actionsEl);
+      controlsEl.appendChild(statusIcon);
+
+      headerEl.appendChild(fieldsEl);
+      headerEl.appendChild(controlsEl);
+      itemEl.appendChild(headerEl);
+
+      headerEl.onclick = () => {
+        if (this.expandedDeckId === desc.id) {
+          this.expandedDeckId = null;
+        } else {
+          this.expandedDeckId = desc.id;
+        }
+        this.refreshList();
+      };
+
+      if (this.expandedDeckId === desc.id) {
+        const subListEl = document.createElement('div');
+        subListEl.className = 'deck-manager-sublist';
+
+        for (const uri of requiredUris) {
+          const resItem = document.createElement('div');
+          resItem.className = 'deck-manager-subitem';
+
+          const res = resources.find(r => r.uri === uri);
+          const isSaved = !!res;
+
+          const leftBox = document.createElement('div');
+          leftBox.className = 'deck-manager-subitem-left';
+
+          if (isSaved && res.blob) {
+            const preview = document.createElement('img');
+            preview.className = 'deck-manager-preview';
+            preview.src = URL.createObjectURL(res.blob);
+            leftBox.appendChild(preview);
+          }
+
+          const infoBox = document.createElement('div');
+          infoBox.className = 'deck-manager-fields';
+          infoBox.innerHTML = `
+            <div class="deck-manager-field-line"><span class="deck-manager-field-key">uri:</span> ${uri}</div>
+            <div class="deck-manager-field-line"><span class="deck-manager-field-key">type:</span> ${res ? res.type : 'N/A'}</div>
+          `;
+          leftBox.appendChild(infoBox);
+
+          const resIcon = document.createElement('span');
+          resIcon.className = `deck-manager-icon ${isSaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}`;
+          resIcon.innerHTML = isSaved ? '✓' : '';
+
+          resItem.appendChild(leftBox);
+          resItem.appendChild(resIcon);
+          subListEl.appendChild(resItem);
+        }
+        itemEl.appendChild(subListEl);
+      }
+
+      this.listEl.appendChild(itemEl);
+    }
+  }
+
+  async compressDeck(descriptor, resources) {
+    const zip = new JSZip();
+    zip.file(`${descriptor.id}.deck`, JSON.stringify(descriptor, null, 2));
+
+    for (const res of resources) {
+      zip.file(res.uri, res.blob);
+    }
+
+    return await zip.generateAsync({ type: 'blob' });
+  }
+
+  async extractDeckObject(zipFile) {
+    if (!zipFile || !(zipFile instanceof Blob || zipFile instanceof File)) {
+      throw new Error("Argument is not a valid zip blob/file.");
+    }
+
+    let zip;
+    try {
+      zip = await JSZip.loadAsync(zipFile);
+    } catch (e) {
+      throw new Error("Failed to extract file: Invalid zip format.");
+    }
+
+    let deckFileEntry = null;
+    zip.forEach((relativePath, entry) => {
+      if (relativePath.endsWith('.deck') && !entry.dir) {
+        deckFileEntry = entry;
+      }
+    });
+
+    if (!deckFileEntry) {
+      throw new Error("Zip archive does not contain a .deck file.");
+    }
+
+    const deckText = await deckFileEntry.async('string');
+    const descriptorObj = JSON.parse(deckText);
+
+    const requiredUris = this._getRequiredResourceUris(descriptorObj);
+    const resources = [];
+
+    for (const uri of requiredUris) {
+      const entry = zip.file(uri);
+      if (entry) {
+        const blob = await entry.async('blob');
+        resources.push(new DeckResource({
+          deck: descriptorObj.id,
+          uri: uri,
+          type: blob.type || 'application/octet-stream',
+          blob: blob
+        }));
+      }
+    }
+
+    return {
+      descriptor: new DeckDescriptor(descriptorObj),
+      resources: resources
+    };
   }
 
   onDeckDescriptorUploaded(callback) {
-    // TODO
-    // called when a DeckDescriptor object has been saved on IndexedDB
-    // callback takes a DeckDescriptor argument
+    this.callbacks.descriptorUploaded = callback;
   }
 
   onDeckResourceUploaded(callback) {
-    // TODO
-    // called when a DeckResource object has been saved on IndexedDB
-    // callback takes a DeckResource argument
+    this.callbacks.resourceUploaded = callback;
   }
 
   onDeckUploaded(callback) {
-    // TODO
-    // called when the DeckDescriptor and all of its DeckResources of a Deck have been saved on IndexedDB
-    // callback takes a DeckDescriptor argument
+    this.callbacks.deckUploaded = callback;
   }
 
   onDeckSelected(callback) {
-    // TODO
-    // called when the user clicks on "load" for a specific deck that is already saved on IndexedDB
-    // callback takes a DeckDescriptor argument
+    this.callbacks.deckSelected = callback;
   }
 
   show() {
-    // TODO
+    this.container.style.display = 'flex';
   }
 
   hide() {
-    // TODO
+    this.container.style.display = 'none';
+  }
+}
+
+export class DeckDescriptor {
+  constructor(args = {}) {
+    if (typeof args === 'string') args = JSON.parse(args);
+    if (!args || !args.id) throw new Error(`Invalid deck: ${args}`);
+
+    this.id = args.id;
+    this.title = args.title || args.id || null;
+    this.cover = args.cover || null;
+    this.cards = [];
+    this.rules = [];
+
+    if (!args.cards) throw new Error(`Empty deck: ${args.id}`);
+    const cardIds = new Set();
+    for (let rawCard of args.cards) {
+      const card = new CardDescriptor(rawCard);
+      if (cardIds.has(card.id)) throw new Error(`Duplicate card: ${card.id}`);
+      cardIds.add(card.id);
+      this.cards.push(card);
+    }
+
+    if (args.rules) {
+      const ruleUris = new Set();
+      for (let rawRule of args.rules) {
+        const rule = new RuleDescriptor(rawRule);
+        if (rule.uri && ruleUris.has(rule.uri)) throw new Error(`Duplicate rule: ${rule.uri}`);
+        if (rule.uri) ruleUris.add(rule.uri);
+        this.rules.push(rule);
+      }
+    }
   }
 
-  // TODO other public methods if necessary or useful
-
+  equals(other) {
+    if (!(other instanceof DeckDescriptor)) return false;
+    return JSON.stringify(this) === JSON.stringify(other);
+  }
 }
 
-/*
-{
-  "id": "deck01",
-  "title": "Deck Title",
-  "cover": "cover_image_of_the_deck.jpg",
-  "rules": [
-    {
-      "title": "Official EN/US"
-      "text": null,
-      "uri": "https://officialwebsite.com/rules_enUS.pdf"
-    },
-    {
-      "title": null,
-      "text": "............",
-      "uri": "rules_itIT.jpg"
-    },
-    {
-      "title": null,
-      "text": null,
-      "uri": "rules_frFR.pdf"
+export class RuleDescriptor {
+  constructor(args = {}) {
+    if (typeof args === 'string') args = JSON.parse(args);
+    if (!args || (!args.text && !args.uri) || (!args.title && !args.uri)) {
+      throw new Error(`Invalid rule: ${JSON.stringify(args)}`);
     }
-  ],
-  cards: [
-    {
-      "id": "T001",
-      "title": "Title of T001",
-      "text": "Text of T001",
-      "front": "front_of_T001.png",
-      "back": "back_of_T.png"
-    },
-    {
-      "id": "D001",
-      "title": "Title of D001",
-      "text": "Text of D001",
-      "front": "front_of_D001.png",
-      "back": "back_of_D.png"
-    },
-    {
-      "id": "D002",
-      "title": "Title of D002",
-      "text": "Text of D002",
-      "front": "front_of_D002.png",
-      "back": "back_of_D.png"
-    },
-    {
-      "id": "D003",
-      "title": "Title of D002",
-      "text": "Text of D002",
-      "front": "front_of_D002.png",
-      "back": "back_of_D.png"
-    }
-  ]
-}
-*/
-class DeckDescriptor {
+    this.title = args.title || null;
+    this.text = args.text || null;
+    this.uri = args.uri || null;
+  }
 
-    constructor(args = {}) {
-        if (typeof args === 'string')
-            args = JSON.parse(args);
-        if (!args.id)
-            throw new Error(`Invalid deck: ${args}`);
-        this.title = args.title || args.id || null;
-        this.cover = args.cover || null;
-        this.cards = [];
-        this.rules = [];
-        if (!args.cards)
-            throw new Error(`Empty deck: ${args.id}`);
-        const cards = new Set();
-        for (const card of args.cards) {
-            card = new CardDescriptor(card);
-            if (cards.has(card.id))
-                throw new Error(`Duplicate card: ${card.id}`);
-            cards.add(card.id);
-            this.cards.push(card);
-        }
-        if (!args.rules)
-            return;
-        const rules = new Set();
-        for (let rule of args.rules) {
-            rule = new RuleDescriptor(rule);
-            if (rules.has(rule.uri))
-                throw new Error(`Duplicate rule: ${rule.uri}`);
-            rules.add(rule.uri);
-            this.rules.push(rule);
-        }
-    }
-
-    equals(other) {
-        return false; // TODO deep equality check
-    }
-
+  equals(other) {
+    if (!(other instanceof RuleDescriptor)) return false;
+    return JSON.stringify(this) === JSON.stringify(other);
+  }
 }
 
-class RuleDescriptor {
-
-    constructor(args = {}) {
-        if (typeof args === 'string')
-            args = JSON.parse(args);
-        if (!args || (!args.text && !args.uri) || (!args.title && !args.uri))
-            throw new Error(`Invalid rule: ${args}`);
-        this.title = args.title || null;
-        this.text = args.text || null;
-        this.uri = args.uri || null; // URI: if it doesn't start with "http:" or "https:" it's a DockResource reference
+export class CardDescriptor {
+  constructor(args = {}) {
+    if (typeof args === 'string') args = JSON.parse(args);
+    if (!args || !args.id || (!args.title && !args.text && !args.front)) {
+      throw new Error(`Invalid card: ${JSON.stringify(args)}`);
     }
+    this.id = args.id;
+    this.title = args.title || null;
+    this.text = args.text || null;
+    this.front = args.front || null;
+    this.back = args.back || null;
+  }
 
-    equals(other) {
-        return false; // TODO deep equality check
-    }
-
+  equals(other) {
+    if (!(other instanceof CardDescriptor)) return false;
+    return JSON.stringify(this) === JSON.stringify(other);
+  }
 }
 
-class CardDescriptor {
-
-    constructor(args = {}) {
-        if (typeof args === 'string')
-            args = JSON.parse(args);
-        if (!card || !card.id || (!args.title && !args.text && !args.front))
-            throw new Error(`Invalid card: ${args}`);
-        this.id = args.id;
-        this.title = args.title || null;
-        this.text = args.text || null;
-        this.front = args.front || null; // URI: if it doesn't start with "http:" or "https:" it's a DockResource reference
-        this.back = args.back || null; // URI: if it doesn't start with "http:" or "https:" it's a DockResource reference
+export class DeckResource {
+  constructor(args = {}) {
+    if (typeof args === 'string') args = JSON.parse(args);
+    if (!args || !args.deck || !args.uri || !args.type || !args.blob) {
+      throw new Error(`Invalid resource: ${JSON.stringify(args)}`);
     }
+    this.deck = args.deck;
+    this.uri = args.uri;
+    this.type = args.type;
+    this.blob = args.blob;
+  }
 
-    equals(other) {
-        return false; // TODO deep equality check
-    }
-
-}
-
-/*
-{
-    "type": "image/jpeg",
-    "blob": "............",
-    "uri": "deck01/rules_itIT.jpg",
-}
-{
-    "type": "application/pdf",
-    "blob": "............",
-    "uri": "deck01/rules_frFR.pdf",
-}
-{
-    "type": "image/png",
-    "blob": "............",
-    "uri": "deck01/front_of_T001.png",
-}
-{
-    "type": "image/png",
-    "blob": "............",
-    "uri": "deck01/back_of_T.png",
-}
-*/
-class DeckResource {
-
-    constructor(args = {}) {
-        if (typeof args === 'string')
-            args = JSON.parse(args);
-        if (!args.deck || !args.uri || !args.type || !args.blob)
-            throw new Error(`Invalid resource: ${args}`);
-        this.deck = args.deck;
-        this.uri = args.uri;
-        this.type = args.type;
-        this.blob = args.blob;
-    }
-
-    equals(other) {
-        return false; // TODO deep equality check
-    }
-
+  equals(other) {
+    if (!(other instanceof DeckResource)) return false;
+    return this.deck === other.deck && this.uri === other.uri && this.type === other.type;
+  }
 }
