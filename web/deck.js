@@ -7,7 +7,7 @@ export class DeckManager {
 
   // TODO create the widget's DOM elements
   // - dom elements must be created in this class
-  // - styles must be defined in the deck.css file
+  // - styles must be defined in the deck.css file; all the css classes should start with the prefix ".deck-manager-"
   // - base styles must be similar to the LoginForm's styles
   // - this widget must be hidden initially
   // - the widget has the following elements:
