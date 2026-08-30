@@ -19,23 +19,22 @@ export class DeckManager {
   //     - each list's item can be expanded into a sub-list and collapsed
   //       - every list's item must be collapsed initially
   //       - only one sub-list can be expanded at once, if another one is expanded, the previous one gets collapsed
+  //       - lazy-load (create) the sub-list's items only when expanding the list's item
+  //       - destroy the sub-list's items when collapsing the list's item
   //       - each sub-list's item represents a DeckResource (green mark if the deck is fully saved on IndexedDB, loading mark otherwise)
   //         - show a small preview of the blob on the left
   //           - all the previews must have the same fixed max-width and max-height
   //           - the preview must keep the correct width-height ratio
-  //           - as there might be many previews, consider implementing "trick" to make the whole web application more efficient:
-  //             - lazy loading of the previews when expanding the list's items
-  //             - unloading the previews when collapsing the list's items and when hiding the widget
   //         - show all the "basic" fields (not the blob) of the DeckResource as "fieldName: value"
   //         - show a green mark on the right if the DeckResource has been saved on IndexedDB, a loading mark otherwise
   //   - on top, an action "bar" with:
-  //     - a file selection input on the left, to let the user select a "deck" from the filesystem and save it on IndexedDB
+  //     - a file selection input on the left, to let the user select a "deck" from the filesystem
   //       - the user can select a folder containing a .deck file representing a DeckDescriptor object and many images (many types supported) representing the all the DeckResources referenced by the DeckDescriptor
   //       - the user can select a .zip file containing a .deck file representing a DeckDescriptor object and many images (many types supported) representing all the DeckResources referenced by the DeckDescriptor
   //       - the user can select a list of files: a .deck file and all the DeckResources referenced by the DeckDescriptor
   //       - if more than one .deck file is present, prompt an Error integrated in the widget
   //       - if some DeckResources referenced by the DeckDescriptor are not present in the files, prompt an Error integrated in the widget
-  //       - if some selected files are not referenced by the DeckDescriptor, ignore them, filter them out and do not upload/save them
+  //       - if some selected files are not referenced by the DeckDescriptor, ignore them, filter them out
   //     - an "upload" button on the right of the file input, to start the saving process
   //       - save the DeckDescriptor and its DeckResources on IndexedDB
   //       - show the new "pending" deck in the list of decks when the DeckDescriptor has been saved even if all or some DeckResources are still to be saved
@@ -96,10 +95,10 @@ export class DeckManager {
 
 /*
 {
-  id: "deck01
-  title: "Deck Title",
-  cover: "p2p:cover_image_of_the_deck.jpg",
-  rules: [
+  "id": "deck01",
+  "title": "Deck Title",
+  "cover": "cover_image_of_the_deck.jpg",
+  "rules": [
     {
       "title": "Official EN/US"
       "text": null,
