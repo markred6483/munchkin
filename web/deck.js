@@ -1,6 +1,14 @@
 import { DeckRepository } from './db.js';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
 
+// SVG Icon Helpers
+const ICONS = {
+  upload: `<svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>`,
+  delete: `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,
+  load: `<svg viewBox="0 0 24 24"><path d="M5 4h14v2H5V4zm0 10h4v6h6v-6h4l-7-7-7 7z"/></svg>`,
+  close: `<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`
+};
+
 /**
  * DeckManager - UI component and operational handler for decks and deck resources.
  */
@@ -15,6 +23,7 @@ export class DeckManager {
     };
 
     this.expandedDeckId = null;
+    this.expandedSectionKey = null; // Single active sub-section key e.g., "deckId:rules"
     this.selectedFiles = [];
 
     if (!containerSelector) {
@@ -37,11 +46,14 @@ export class DeckManager {
 
     this.container.innerHTML = `
       <div class="deck-manager-box">
+        <div class="deck-manager-header">
+          <h3 class="deck-manager-title">Deck Manager</h3>
+          <button class="deck-manager-btn-icon deck-manager-btn-close" id="deck-close-btn" title="Close">${ICONS.close}</button>
+        </div>
         <div class="deck-manager-action-bar">
-          <label class="deck-manager-file-label" for="deck-file-input">Choose .zip, .deck or deck folder...</label>
+          <label class="deck-manager-file-label" for="deck-file-input">Choose .zip, .deck or folder...</label>
           <input type="file" id="deck-file-input" class="deck-manager-file-input" multiple webkitdirectory />
-          <button class="deck-manager-btn" id="deck-upload-btn">Upload</button>
-          <button class="deck-manager-btn deck-manager-btn-close" id="deck-close-btn">✕</button>
+          <button class="deck-manager-btn-icon" id="deck-upload-btn" title="Upload">${ICONS.upload}</button>
         </div>
         <div class="deck-manager-error" id="deck-error-msg"></div>
         <div class="deck-manager-list" id="deck-list-container"></div>
@@ -57,8 +69,7 @@ export class DeckManager {
   }
 
   _bindEvents() {
-    this.fileLabel.addEventListener('click', (e) => {
-      // Allows resetting input state on re-selection
+    this.fileLabel.addEventListener('click', () => {
       this.fileInput.value = '';
     });
 
@@ -67,7 +78,7 @@ export class DeckManager {
       if (this.selectedFiles.length > 0) {
         this.fileLabel.textContent = `${this.selectedFiles.length} file(s) selected`;
       } else {
-        this.fileLabel.textContent = 'Choose .zip, .deck or deck folder...';
+        this.fileLabel.textContent = 'Choose .zip, .deck or folder...';
       }
       this._hideError();
     });
@@ -95,7 +106,7 @@ export class DeckManager {
 
     try {
       let descriptorObj = null;
-      let resourceFilesMap = new Map(); // uri -> File/Blob
+      let resourceFilesMap = new Map();
 
       const isZip = this.selectedFiles.length === 1 && this.selectedFiles[0].name.endsWith('.zip');
 
@@ -148,6 +159,7 @@ export class DeckManager {
       }
 
       this.expandedDeckId = descriptor.id;
+      this.expandedSectionKey = null;
       await this.refreshList();
 
       for (const [uri, blobOrFile] of resourceFilesMap.entries()) {
@@ -210,18 +222,39 @@ export class DeckManager {
       const requiredUris = this._getRequiredResourceUris(desc);
       const isFullySaved = requiredUris.size === resources.length;
 
+      // Primary header
       const headerEl = document.createElement('div');
       headerEl.className = 'deck-manager-item-header';
 
+      const leftEl = document.createElement('div');
+      leftEl.className = 'deck-manager-item-left';
+
+      // Cover preview frame
+      const coverFrame = document.createElement('div');
+      coverFrame.className = 'deck-manager-preview-frame';
+      const coverRes = desc.cover ? resources.find(r => r.uri === desc.cover) : null;
+      if (coverRes && coverRes.blob) {
+        const img = document.createElement('img');
+        img.className = 'deck-manager-preview';
+        img.src = URL.createObjectURL(coverRes.blob);
+        coverFrame.appendChild(img);
+      } else {
+        coverFrame.innerHTML = '<span class="deck-manager-preview-placeholder">No Cover</span>';
+      }
+
+      // Basic fields (excluding cover, cards, rules)
       const fieldsEl = document.createElement('div');
       fieldsEl.className = 'deck-manager-fields';
       Object.keys(desc).forEach(key => {
-        if (key === 'cards' || key === 'rules') return;
+        if (key === 'cards' || key === 'rules' || key === 'cover') return;
         const line = document.createElement('div');
         line.className = 'deck-manager-field-line';
         line.innerHTML = `<span class="deck-manager-field-key">${key}:</span> ${desc[key]}`;
         fieldsEl.appendChild(line);
       });
+
+      leftEl.appendChild(coverFrame);
+      leftEl.appendChild(fieldsEl);
 
       const controlsEl = document.createElement('div');
       controlsEl.className = 'deck-manager-controls';
@@ -231,8 +264,9 @@ export class DeckManager {
 
       if (isFullySaved) {
         const loadBtn = document.createElement('button');
-        loadBtn.className = 'deck-manager-btn';
-        loadBtn.textContent = 'Load';
+        loadBtn.className = 'deck-manager-btn-icon deck-manager-btn-load';
+        loadBtn.title = 'Load';
+        loadBtn.innerHTML = ICONS.load;
         loadBtn.onclick = (e) => {
           e.stopPropagation();
           if (this.callbacks.deckSelected) this.callbacks.deckSelected(desc);
@@ -241,13 +275,17 @@ export class DeckManager {
       }
 
       const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'deck-manager-btn deck-manager-btn-delete';
-      deleteBtn.textContent = 'Delete';
+      deleteBtn.className = 'deck-manager-btn-icon deck-manager-btn-delete';
+      deleteBtn.title = 'Delete';
+      deleteBtn.innerHTML = ICONS.delete;
       deleteBtn.onclick = async (e) => {
         e.stopPropagation();
         await this.repo.deleteResourcesByDeck(desc.id);
         await this.repo.deleteDescriptor(desc.id);
-        if (this.expandedDeckId === desc.id) this.expandedDeckId = null;
+        if (this.expandedDeckId === desc.id) {
+          this.expandedDeckId = null;
+          this.expandedSectionKey = null;
+        }
         this.refreshList();
       };
       actionsEl.appendChild(deleteBtn);
@@ -259,61 +297,153 @@ export class DeckManager {
       controlsEl.appendChild(actionsEl);
       controlsEl.appendChild(statusIcon);
 
-      headerEl.appendChild(fieldsEl);
+      headerEl.appendChild(leftEl);
       headerEl.appendChild(controlsEl);
       itemEl.appendChild(headerEl);
 
       headerEl.onclick = () => {
         if (this.expandedDeckId === desc.id) {
           this.expandedDeckId = null;
+          this.expandedSectionKey = null;
         } else {
           this.expandedDeckId = desc.id;
+          this.expandedSectionKey = null;
         }
         this.refreshList();
       };
 
+      // Expandable Sub-sections container
       if (this.expandedDeckId === desc.id) {
-        const subListEl = document.createElement('div');
-        subListEl.className = 'deck-manager-sublist';
+        const sectionsContainer = document.createElement('div');
+        sectionsContainer.className = 'deck-manager-sections';
 
-        for (const uri of requiredUris) {
-          const resItem = document.createElement('div');
-          resItem.className = 'deck-manager-subitem';
+        // 1. Rules Section
+        sectionsContainer.appendChild(
+          this._createSubSection(desc.id, 'rules', `Rules (${desc.rules.length})`, () => {
+            const list = document.createElement('div');
+            list.className = 'deck-manager-sublist';
+            desc.rules.forEach(rule => {
+              const ruleEl = document.createElement('div');
+              ruleEl.className = 'deck-manager-subitem';
+              ruleEl.innerHTML = `
+                <div class="deck-manager-fields">
+                  ${rule.title ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">title:</span> ${rule.title}</div>` : ''}
+                  ${rule.text ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">text:</span> ${rule.text}</div>` : ''}
+                  ${rule.uri ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">uri:</span> ${rule.uri}</div>` : ''}
+                </div>
+              `;
+              list.appendChild(ruleEl);
+            });
+            return list;
+          })
+        );
 
-          const res = resources.find(r => r.uri === uri);
-          const isSaved = !!res;
+        // 2. Cards Section
+        sectionsContainer.appendChild(
+          this._createSubSection(desc.id, 'cards', `Cards (${desc.cards.length})`, () => {
+            const list = document.createElement('div');
+            list.className = 'deck-manager-sublist';
+            desc.cards.forEach(card => {
+              const cardEl = document.createElement('div');
+              cardEl.className = 'deck-manager-subitem';
+              cardEl.innerHTML = `
+                <div class="deck-manager-fields">
+                  <div class="deck-manager-field-line"><span class="deck-manager-field-key">id:</span> ${card.id}</div>
+                  ${card.title ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">title:</span> ${card.title}</div>` : ''}
+                  ${card.text ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">text:</span> ${card.text}</div>` : ''}
+                  ${card.front ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">front:</span> ${card.front}</div>` : ''}
+                  ${card.back ? `<div class="deck-manager-field-line"><span class="deck-manager-field-key">back:</span> ${card.back}</div>` : ''}
+                </div>
+              `;
+              list.appendChild(cardEl);
+            });
+            return list;
+          })
+        );
 
-          const leftBox = document.createElement('div');
-          leftBox.className = 'deck-manager-subitem-left';
+        // 3. Resources Section
+        sectionsContainer.appendChild(
+          this._createSubSection(desc.id, 'resources', `Resources (${requiredUris.size})`, () => {
+            const list = document.createElement('div');
+            list.className = 'deck-manager-sublist';
+            for (const uri of requiredUris) {
+              const resItem = document.createElement('div');
+              resItem.className = 'deck-manager-subitem';
 
-          if (isSaved && res.blob) {
-            const preview = document.createElement('img');
-            preview.className = 'deck-manager-preview';
-            preview.src = URL.createObjectURL(res.blob);
-            leftBox.appendChild(preview);
-          }
+              const res = resources.find(r => r.uri === uri);
+              const isSaved = !!res;
 
-          const infoBox = document.createElement('div');
-          infoBox.className = 'deck-manager-fields';
-          infoBox.innerHTML = `
-            <div class="deck-manager-field-line"><span class="deck-manager-field-key">uri:</span> ${uri}</div>
-            <div class="deck-manager-field-line"><span class="deck-manager-field-key">type:</span> ${res ? res.type : 'N/A'}</div>
-          `;
-          leftBox.appendChild(infoBox);
+              const leftBox = document.createElement('div');
+              leftBox.className = 'deck-manager-subitem-left';
 
-          const resIcon = document.createElement('span');
-          resIcon.className = `deck-manager-icon ${isSaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}`;
-          resIcon.innerHTML = isSaved ? '✓' : '';
+              const resFrame = document.createElement('div');
+              resFrame.className = 'deck-manager-preview-frame';
 
-          resItem.appendChild(leftBox);
-          resItem.appendChild(resIcon);
-          subListEl.appendChild(resItem);
-        }
-        itemEl.appendChild(subListEl);
+              if (isSaved && res.blob) {
+                const preview = document.createElement('img');
+                preview.className = 'deck-manager-preview';
+                preview.src = URL.createObjectURL(res.blob);
+                resFrame.appendChild(preview);
+              } else {
+                resFrame.innerHTML = '<span class="deck-manager-preview-placeholder">N/A</span>';
+              }
+
+              leftBox.appendChild(resFrame);
+
+              const infoBox = document.createElement('div');
+              infoBox.className = 'deck-manager-fields';
+              infoBox.innerHTML = `
+                <div class="deck-manager-field-line"><span class="deck-manager-field-key">uri:</span> ${uri}</div>
+                <div class="deck-manager-field-line"><span class="deck-manager-field-key">type:</span> ${res ? res.type : 'N/A'}</div>
+              `;
+              leftBox.appendChild(infoBox);
+
+              const resIcon = document.createElement('span');
+              resIcon.className = `deck-manager-icon ${isSaved ? 'deck-manager-icon-check' : 'deck-manager-icon-spinner'}`;
+              resIcon.innerHTML = isSaved ? '✓' : '';
+
+              resItem.appendChild(leftBox);
+              resItem.appendChild(resIcon);
+              list.appendChild(resItem);
+            }
+            return list;
+          })
+        );
+
+        itemEl.appendChild(sectionsContainer);
       }
 
       this.listEl.appendChild(itemEl);
     }
+  }
+
+  _createSubSection(deckId, sectionType, title, contentBuilder) {
+    const sectionKey = `${deckId}:${sectionType}`;
+    const sectionEl = document.createElement('div');
+    sectionEl.className = 'deck-manager-section';
+
+    const sectionHeader = document.createElement('div');
+    sectionHeader.className = 'deck-manager-section-header';
+    const isExpanded = this.expandedSectionKey === sectionKey;
+    sectionHeader.innerHTML = `<span>${title}</span><span>${isExpanded ? '▲' : '▼'}</span>`;
+
+    sectionHeader.onclick = (e) => {
+      e.stopPropagation();
+      if (this.expandedSectionKey === sectionKey) {
+        this.expandedSectionKey = null;
+      } else {
+        this.expandedSectionKey = sectionKey;
+      }
+      this.refreshList();
+    };
+
+    sectionEl.appendChild(sectionHeader);
+
+    if (isExpanded) {
+      sectionEl.appendChild(contentBuilder());
+    }
+
+    return sectionEl;
   }
 
   async compressDeck(descriptor, resources) {
