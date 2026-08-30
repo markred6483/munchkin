@@ -4,10 +4,7 @@
 
 .deck-manager-container {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100dvw;
-  height: 100dvh;
+  inset: 0;
   background-color: var(--color-bg-overlay);
   /* Applica un effetto sfuocato agli elementi che si trovano dietro al container */
   backdrop-filter: blur(8px);
@@ -43,9 +40,6 @@
   max-width: 650px;
   width: 100%;
   max-height: calc(100dvh - 40px);
-  /* Garantisce che il padding interno non riduca lo spazio oltre il max-height definito */
-  box-sizing: border-box;
-  color: var(--color-text-main);
   overflow: hidden;
 }
 
@@ -66,7 +60,6 @@
   font-size: var(--font-size-lg);
   font-weight: 600;
   margin: 0;
-  color: var(--color-text-main);
 }
 
 .deck-manager-action-bar {
@@ -87,7 +80,7 @@
   flex: 1;
   background: var(--color-bg-card);
   border: 1px dashed var(--color-border-hover);
-  color: var(--color-text-detail);
+  color: var(--color-text-subtle);
   font-size: var(--font-size-sm);
   padding: 8px 14px;
   border-radius: var(--radius-md);
@@ -106,10 +99,10 @@
   color: var(--color-text-main);
 }
 
-/* Icon Buttons */
+/* Icon Buttons base */
 .deck-manager-btn-icon {
-  background: var(--color-bg-card-hover);
-  border: none;
+  background: var(--color-bg-card);
+  border: 1px solid transparent;
   color: var(--color-text-main);
   width: 36px;
   height: 36px;
@@ -120,10 +113,14 @@
   align-items: center;
   justify-content: center;
   /* Transizione per feedback visivo dinamico alla pressione e all'hover */
-  transition: background 0.2s, transform 0.1s;
+  transition: var(--transition-fast);
   padding: 0;
   /* Previene la deformazione dell'icona quando lo spazio è ristretto */
   flex-shrink: 0;
+}
+
+.deck-manager-btn-icon:hover {
+  background: var(--color-bg-card-hover);
 }
 
 .deck-manager-btn-icon svg {
@@ -133,52 +130,47 @@
   fill: currentColor;
 }
 
-/* Action Buttons Varianti */
+/* Varianti Pulsanti con sfondo semi-trasparente dinamico */
 .deck-manager-btn-close {
-  background: var(--color-bg-section-header);
-  color: var(--color-text-subtle);
+  background: transparent;
+  color: var(--color-text-muted);
 }
-
 .deck-manager-btn-close:hover {
-  background: var(--color-bg-card-hover);
   color: var(--color-text-main);
 }
 
 .deck-manager-btn-upload {
-  background: #252848; /* Ricalcolato senza trasparenza per contrasto fisso */
+  background: var(--color-primary-alpha);
   color: var(--color-primary-light);
 }
-
 .deck-manager-btn-upload:hover {
   background: var(--color-primary);
-  color: var(--color-text-main);
+  color: #fff;
 }
 
 .deck-manager-btn-delete {
-  background: #3b1e24; /* Ricalcolato senza trasparenza */
-  color: var(--color-danger-light);
+  background: var(--color-danger-alpha);
+  color: var(--color-danger);
 }
-
 .deck-manager-btn-delete:hover {
-  background: var(--color-danger-dark);
-  color: var(--color-text-main);
+  background: var(--color-danger);
+  color: #fff;
 }
 
 .deck-manager-btn-load {
-  background: #1c3829; /* Ricalcolato senza trasparenza */
-  color: var(--color-success-light);
+  background: var(--color-success-alpha);
+  color: var(--color-success);
 }
-
 .deck-manager-btn-load:hover {
-  background: var(--color-success-dark);
-  color: var(--color-text-main);
+  background: var(--color-success);
+  color: #fff;
 }
 
-/* Error Box */
+/* Messaggio di Errore */
 .deck-manager-error {
-  background: #381a1d;
+  background: var(--color-danger-alpha);
   border: 1px solid var(--color-danger);
-  color: var(--color-danger-light);
+  color: var(--color-text-main);
   font-size: var(--font-size-sm);
   padding: 10px 14px;
   border-radius: var(--radius-md);
@@ -197,10 +189,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-bottom: 4px;
+  padding-right: 4px;
   scrollbar-width: thin;
-  scrollbar-color: #2e2e2e transparent;
   /*scrollbar-gutter: stable both-edges;*/
+  scrollbar-color: var(--color-border) transparent;
 }
 
 .deck-manager-empty {
@@ -227,8 +219,8 @@
   justify-content: space-between;
   padding: 12px 16px;
   cursor: pointer;
-  background: var(--color-bg-card);
   gap: 12px;
+  transition: var(--transition-fast);
 }
 
 .deck-manager-item-header:hover {
@@ -245,14 +237,12 @@
   min-width: 0;
 }
 
-/* Fixed Preview Frames */
+/* Anteprime ed Elementi Grafici */
 .deck-manager-preview-frame {
   width: 48px;
   height: 48px;
-  min-width: 48px;
-  min-height: 48px;
   border-radius: var(--radius-sm);
-  background: var(--color-bg-base);
+  background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--color-border);
   /* Centra l'immagine/placeholder al suo interno */
   display: flex;
@@ -272,11 +262,11 @@
 
 .deck-manager-preview-placeholder {
   font-size: var(--font-size-xs);
-  color: var(--color-text-placeholder);
+  color: var(--color-text-muted);
   text-transform: uppercase;
 }
 
-/* Fields Typography & Truncation */
+/* Campi Informazione */
 .deck-manager-fields {
   /* Raggruppa le righe di attributi in uno stack verticale */
   display: flex;
@@ -289,7 +279,7 @@
 }
 
 .deck-manager-field-line {
-  color: var(--color-text-field);
+  color: var(--color-text-subtle);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -317,7 +307,7 @@
   gap: 6px;
 }
 
-/* Status Icons */
+/* Status Icons & Spinner */
 .deck-manager-icon {
   width: 20px;
   height: 20px;
@@ -364,7 +354,7 @@
 }
 
 .deck-manager-section-header {
-  background: var(--color-bg-section-header);
+  background: rgba(255, 255, 255, 0.03);
   padding: 8px 12px;
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -374,15 +364,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: var(--transition-fast);
 }
 
 .deck-manager-section-header:hover {
-  background: var(--color-bg-section-hover);
+  background: var(--color-bg-card-hover);
   color: var(--color-text-main);
 }
 
 .deck-manager-sublist {
-  background: var(--color-bg-sublist);
   padding: 8px;
   /* Dispone le sub-card in colonna */
   display: flex;
@@ -395,7 +385,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--color-bg-subitem);
+  background: rgba(0, 0, 0, 0.2);
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   gap: 12px;

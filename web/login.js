@@ -10,7 +10,7 @@ export class LoginForm {
   }
 
   /**
-   * Determina e imposta l'elemento DOM del container.
+   * Aggancia o crea il container per il login.
    * @private
    */
   _resolveContainer(selector) {
@@ -24,14 +24,14 @@ export class LoginForm {
   }
 
   /**
-   * Costruisce la struttura DOM del login.
+   * Genera il markup dell'interfaccia.
    * @private
    */
   _initDOM() {
     this.container.innerHTML = `
       <div class="login-box">
         <h2 class="login-title">PeerJS Game</h2>
-        <input type="text" id="peer-input" class="login-input" placeholder="Il tuo nome..." autocomplete="off" />
+        <input type="text" id="peer-input" class="login-input" placeholder="Il tuo nome..." autocomplete="off" spellcheck="false" />
         <p class="login-hint">Premi Invio per entrare</p>
       </div>
     `;
@@ -45,11 +45,10 @@ export class LoginForm {
    */
   _bindEvents() {
     this.inputEl.addEventListener('keydown', (evt) => {
-      // Uso standard moderno di 'key' al posto del deprecato 'keyCode'
       if (evt.key === 'Enter') {
         const peerName = this.inputEl.value.trim();
         if (!peerName) {
-          this.inputEl.value = "";
+          this.inputEl.value = '';
           return;
         }
         if (typeof this._onLoginCallback === 'function') {
@@ -65,7 +64,7 @@ export class LoginForm {
   show() {
     this.container.style.display = 'flex';
     if (this.inputEl) {
-      this.inputEl.value = "";
+      this.inputEl.value = '';
       this.inputEl.focus();
     }
   }

@@ -4,11 +4,9 @@
 
 .login-container {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100dvw;
-  height: 100dvh;
-  background-color: var(--color-bg-base);
+  inset: 0;
+  background-color: var(--color-bg-overlay);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,12 +27,11 @@
   gap: 16px;
   max-width: 380px;
   width: 90%;
-  box-sizing: border-box;
 }
 
 .login-title {
   color: var(--color-text-main);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: 600;
   margin: 0 0 4px 0;
   letter-spacing: -0.5px;
@@ -43,13 +40,12 @@
 .login-input {
   width: 100%;
   background: var(--color-bg-card);
-  border: 1px solid var(--color-border-hover);
+  border: 1px solid var(--color-border);
   color: var(--color-text-main);
   font-size: var(--font-size-md);
   padding: 12px 16px;
   border-radius: var(--radius-lg);
   outline: none;
-  box-sizing: border-box;
   transition: var(--transition-fast);
 }
 

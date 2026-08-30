@@ -1,7 +1,7 @@
 import { DeckRepository } from './db.js';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
 
-// SVG Icon Helpers
+// Icone SVG riutilizzabili
 const ICONS = {
   upload: `<svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>`,
   delete: `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,
@@ -25,6 +25,7 @@ export class DeckManager {
     this.expandedDeckId = null;
     this.expandedSectionKey = null;
     this.selectedFiles = [];
+    this._objectUrls = []; // Track per evitare Memory Leak con URL.createObjectURL
 
     this._resolveContainer(containerSelector);
     this._initDOM();
@@ -33,7 +34,7 @@ export class DeckManager {
   }
 
   /**
-   * Gestisce l'aggancio dell'elemento container principale.
+   * Gestisce l'aggancio del container principale.
    * @private
    */
   _resolveContainer(selector) {
@@ -45,6 +46,10 @@ export class DeckManager {
     }
   }
 
+  /**
+   * Inizializza la struttura HTML statica del modale.
+   * @private
+   */
   _initDOM() {
     this.container.className = 'deck-manager-container';
     this.container.style.display = 'none';
@@ -73,6 +78,10 @@ export class DeckManager {
     this.listEl = this.container.querySelector('#deck-list-container');
   }
 
+  /**
+   * Assegna i listener per gli eventi UI principali.
+   * @private
+   */
   _bindEvents() {
     this.fileLabel.addEventListener('click', () => {
       this.fileInput.value = '';
@@ -98,6 +107,15 @@ export class DeckManager {
   _hideError() {
     this.errorEl.textContent = '';
     this.errorEl.style.display = 'none';
+  }
+
+  /**
+   * Pulisce gli URL degli oggetti Blob precedentemente allocati.
+   * @private
+   */
+  _clearObjectUrls() {
+    this._objectUrls.forEach(url => URL.revokeObjectURL(url));
+    this._objectUrls = [];
   }
 
   async _handleUpload() {
@@ -145,7 +163,7 @@ export class DeckManager {
       const descriptor = new DeckDescriptor(descriptorObj);
 
       if (await this.repo.hasDescriptor(descriptor.id)) {
-        throw new Error(`Deck '${descriptor.id}' already exists on IndexedDB.`);
+        throw new Error(`Deck '${descriptor.id}' already exists.`);
       }
 
       await this.repo.saveDescriptor(descriptor);
@@ -153,7 +171,6 @@ export class DeckManager {
 
       this.expandedDeckId = descriptor.id;
       this.expandedSectionKey = null;
-      await this.refreshList();
 
       for (const [uri, blobOrFile] of resourceFilesMap.entries()) {
         const resource = new DeckResource({
@@ -164,10 +181,10 @@ export class DeckManager {
         });
         await this.repo.saveResource(resource);
         if (this.callbacks.resourceUploaded) this.callbacks.resourceUploaded(resource);
-        await this.refreshList();
       }
 
       if (this.callbacks.deckUploaded) this.callbacks.deckUploaded(descriptor);
+      await this.refreshList();
     } catch (err) {
       this._showError(err.message);
     }
@@ -191,7 +208,11 @@ export class DeckManager {
     return uris;
   }
 
+  /**
+   * Rigenera in modo reattivo la lista dei mazzi.
+   */
   async refreshList() {
+    this._clearObjectUrls();
     const descriptors = await this.repo.getAllDescriptors();
     this.listEl.innerHTML = '';
 
@@ -208,7 +229,7 @@ export class DeckManager {
       const requiredUris = this._getRequiredResourceUris(desc);
       const isFullySaved = requiredUris.size === resources.length;
 
-      // Generazione dinamica dei campi chiave/valore puliti
+      // Generazione dinamica dei campi escludendo le collezioni
       const fieldsHtml = Object.keys(desc)
         .filter(key => key !== 'cards' && key !== 'rules')
         .map(key => `<div class="deck-manager-field-line"><span class="deck-manager-field-key">${key}:</span> ${desc[key] ?? ''}</div>`)
@@ -229,7 +250,7 @@ export class DeckManager {
         </div>
       `;
 
-      // Event listener sul bottone Load (se presente)
+      // Handlers bottoni d'azione
       const loadBtn = itemEl.querySelector('.deck-manager-btn-load');
       if (loadBtn) {
         loadBtn.addEventListener('click', (e) => {
@@ -259,7 +280,7 @@ export class DeckManager {
         this.refreshList();
       });
 
-      // Sotto-sezioni espandibili
+      // Rendering sotto-sezioni espandibili
       if (this.expandedDeckId === desc.id) {
         const sectionsContainer = document.createElement('div');
         sectionsContainer.className = 'deck-manager-sections';
@@ -302,7 +323,7 @@ export class DeckManager {
           })
         );
 
-        // Section Resources
+        // Risorse con tracking dei BLOB per la memoria
         sectionsContainer.appendChild(
           this._createSubSection(desc.id, 'resources', `Resources (${requiredUris.size})`, () => {
             const list = document.createElement('div');
@@ -314,13 +335,17 @@ export class DeckManager {
               const resItem = document.createElement('div');
               resItem.className = 'deck-manager-subitem';
 
-              const imgSrc = (isSaved && res.blob) ? URL.createObjectURL(res.blob) : null;
+              let imgSrc = null;
+              if (isSaved && res.blob) {
+                imgSrc = URL.createObjectURL(res.blob);
+                this._objectUrls.push(imgSrc);
+              }
 
               resItem.innerHTML = `
                 <div class="deck-manager-subitem-left">
                   <div class="deck-manager-preview-frame">
                     ${imgSrc
-                      ? `<img class="deck-manager-preview" src="${imgSrc}" />`
+                      ? `<img class="deck-manager-preview" src="${imgSrc}" alt="Resource Preview" />`
                       : `<span class="deck-manager-preview-placeholder">N/A</span>`}
                   </div>
                   <div class="deck-manager-fields">
@@ -435,13 +460,17 @@ export class DeckManager {
   onDeckSelected(callback) { this.callbacks.deckSelected = callback; }
 
   show() { this.container.style.display = 'flex'; }
-  hide() { this.container.style.display = 'none'; }
+  hide() {
+    this._clearObjectUrls();
+    this.container.style.display = 'none';
+  }
 }
 
+// Model Descriptor Classes
 export class DeckDescriptor {
   constructor(args = {}) {
     if (typeof args === 'string') args = JSON.parse(args);
-    if (!args || !args.id) throw new Error(`Invalid deck: ${args}`);
+    if (!args || !args.id) throw new Error(`Invalid deck: ${JSON.stringify(args)}`);
 
     this.id = args.id;
     this.title = args.title || args.id || null;
@@ -453,7 +482,7 @@ export class DeckDescriptor {
     const cardIds = new Set();
     for (const rawCard of args.cards) {
       const card = new CardDescriptor(rawCard);
-      if (cardIds.has(card.id)) throw new Error(`Duplicate card: ${card.id}`);
+      if (cardIds.has(card.id)) throw new Error(`Duplicate card ID: ${card.id}`);
       cardIds.add(card.id);
       this.cards.push(card);
     }
@@ -462,7 +491,7 @@ export class DeckDescriptor {
       const ruleUris = new Set();
       for (const rawRule of args.rules) {
         const rule = new RuleDescriptor(rawRule);
-        if (rule.uri && ruleUris.has(rule.uri)) throw new Error(`Duplicate rule: ${rule.uri}`);
+        if (rule.uri && ruleUris.has(rule.uri)) throw new Error(`Duplicate rule URI: ${rule.uri}`);
         if (rule.uri) ruleUris.add(rule.uri);
         this.rules.push(rule);
       }
