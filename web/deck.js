@@ -15,6 +15,8 @@ export class DeckManager {
   //     - each list's item represents a DeckDescriptor saved on IndexedDB
   //       - show all the fields of the DeckDescriptor as "fieldName: value"
   //       - show a green mark icon on the right if the deck is fully saved on IndexedDB, a loading icon otherwise
+  //       - show a "load" button on the left of the check mark/loading icon only if the deck is fully loaded
+  //       - show a "delete" button below the "load" button
   //     - "No decks available" message if no DeckDescriptor has been saved on IndexedDB
   //     - each list's item can be expanded into a sub-list and collapsed
   //       - every list's item must be collapsed initially
@@ -30,8 +32,8 @@ export class DeckManager {
   //         - show a green mark on the right if the DeckResource has been saved on IndexedDB, a loading mark otherwise
   //   - on top, an action "bar" with:
   //     - a file selection input on the left, to let the user select a "deck" from the filesystem
-  //       - the user can select a folder containing a .deck file representing a DeckDescriptor object and many images (many types supported) representing the all the DeckResources referenced by the DeckDescriptor
-  //       - the user can select a .zip file containing a .deck file representing a DeckDescriptor object and many images (many types supported) representing all the DeckResources referenced by the DeckDescriptor
+  //       - the user can select a folder containing a .deck file representing a DeckDescriptor object and many PDFs or images (many types supported) representing the all the DeckResources referenced by the DeckDescriptor
+  //       - the user can select a .zip file containing a .deck file representing a DeckDescriptor object and many PDFs or images (many types supported) representing all the DeckResources referenced by the DeckDescriptor
   //       - the user can select a list of files: a .deck file and all the DeckResources referenced by the DeckDescriptor
   //       - if more than one .deck file is present, prompt an Error integrated in the widget
   //       - if some DeckResources referenced by the DeckDescriptor are not present in the files, prompt an Error integrated in the widget
@@ -196,7 +198,7 @@ class RuleDescriptor {
             throw new Error(`Invalid rule: ${args}`);
         this.title = args.title || null;
         this.text = args.text || null;
-        this.uri = args.uri || null;
+        this.uri = args.uri || null; // URI: if it doesn't start with "http:" or "https:" it's a DockResource reference
     }
 
     equals(other) {
@@ -215,8 +217,8 @@ class CardDescriptor {
         this.id = args.id;
         this.title = args.title || null;
         this.text = args.text || null;
-        this.front = args.front || null; // URI
-        this.back = args.back || null; // URI
+        this.front = args.front || null; // URI: if it doesn't start with "http:" or "https:" it's a DockResource reference
+        this.back = args.back || null; // URI: if it doesn't start with "http:" or "https:" it's a DockResource reference
     }
 
     equals(other) {
