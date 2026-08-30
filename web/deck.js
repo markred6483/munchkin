@@ -53,7 +53,7 @@ export class DeckManager {
         <div class="deck-manager-action-bar">
           <label class="deck-manager-file-label" for="deck-file-input">Choose .zip, .deck or folder...</label>
           <input type="file" id="deck-file-input" class="deck-manager-file-input" multiple webkitdirectory />
-          <button class="deck-manager-btn-icon" id="deck-upload-btn" title="Upload">${ICONS.upload}</button>
+          <button class="deck-manager-btn-icon deck-manager-btn-upload" id="deck-upload-btn" title="Upload">${ICONS.upload}</button>
         </div>
         <div class="deck-manager-error" id="deck-error-msg"></div>
         <div class="deck-manager-list" id="deck-list-container"></div>
@@ -229,31 +229,18 @@ export class DeckManager {
       const leftEl = document.createElement('div');
       leftEl.className = 'deck-manager-item-left';
 
-      // Cover preview frame
-      const coverFrame = document.createElement('div');
-      coverFrame.className = 'deck-manager-preview-frame';
-      const coverRes = desc.cover ? resources.find(r => r.uri === desc.cover) : null;
-      if (coverRes && coverRes.blob) {
-        const img = document.createElement('img');
-        img.className = 'deck-manager-preview';
-        img.src = URL.createObjectURL(coverRes.blob);
-        coverFrame.appendChild(img);
-      } else {
-        coverFrame.innerHTML = '<span class="deck-manager-preview-placeholder">No Cover</span>';
-      }
-
-      // Basic fields (excluding cover, cards, rules)
+      // All fields shown as key: value (excluding array attributes)
       const fieldsEl = document.createElement('div');
       fieldsEl.className = 'deck-manager-fields';
       Object.keys(desc).forEach(key => {
-        if (key === 'cards' || key === 'rules' || key === 'cover') return;
+        if (key === 'cards' || key === 'rules') return;
         const line = document.createElement('div');
         line.className = 'deck-manager-field-line';
-        line.innerHTML = `<span class="deck-manager-field-key">${key}:</span> ${desc[key]}`;
+        const val = desc[key] !== null && desc[key] !== undefined ? desc[key] : '';
+        line.innerHTML = `<span class="deck-manager-field-key">${key}:</span> ${val}`;
         fieldsEl.appendChild(line);
       });
 
-      leftEl.appendChild(coverFrame);
       leftEl.appendChild(fieldsEl);
 
       const controlsEl = document.createElement('div');

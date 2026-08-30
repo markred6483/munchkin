@@ -106,18 +106,26 @@
   fill: currentColor;
 }
 
-.deck-manager-btn-icon:hover {
-  background: #4f46e5;
-}
+/* Semi-transparent action buttons */
 
 .deck-manager-btn-close {
-  background: transparent;
-  color: #8e8e9e;
+  background: rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
 }
 
 .deck-manager-btn-close:hover {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.deck-manager-btn-upload {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+.deck-manager-btn-upload:hover {
+  background: #6366f1;
+  color: #ffffff;
 }
 
 .deck-manager-btn-delete {
@@ -151,7 +159,7 @@
   display: none;
 }
 
-/* List Layout */
+/* List Layout (Scrollable) */
 .deck-manager-list {
   flex: 1;
   overflow-y: auto;
@@ -159,6 +167,7 @@
   flex-direction: column;
   gap: 10px;
   padding-right: 4px;
+  min-height: 150px;
 }
 
 .deck-manager-empty {
@@ -182,6 +191,7 @@
   padding: 12px 16px;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.02);
+  gap: 12px;
 }
 
 .deck-manager-item-header:hover {
@@ -192,6 +202,8 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Fixed Preview Frames */
@@ -207,6 +219,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .deck-manager-preview {
@@ -221,16 +234,22 @@
   text-transform: uppercase;
 }
 
-/* Fields Typography */
+/* Fields Typography & Truncation */
 .deck-manager-fields {
   display: flex;
   flex-direction: column;
   gap: 2px;
   font-size: 13px;
+  flex: 1;
+  min-width: 0;
 }
 
 .deck-manager-field-line {
   color: #d1d5db;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .deck-manager-field-key {
@@ -242,6 +261,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .deck-manager-actions {
@@ -325,10 +345,13 @@
   background: #24242d;
   padding: 8px 12px;
   border-radius: 6px;
+  gap: 12px;
 }
 
 .deck-manager-subitem-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
