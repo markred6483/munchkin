@@ -132,6 +132,8 @@
   cursor: pointer;
   transition: box-shadow 0.2s, transform 0.2s;
   touch-action: none;
+  min-width: 20px;
+  min-height: 20px;
 }
 
 .board-object:hover {
