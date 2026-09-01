@@ -11,7 +11,7 @@ export var p2pRandom;
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  const login = new LoginForm();
+//  const login = new LoginForm();
   const board = new GameBoard({
     containerSelector: null,
     width: 5000,
@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   board.on('move', e => console.log(`object ${e.el.id} moved to ${e.x};${e.y}`));
   board.on('remove', e => console.log(`object ${e.el.id} deleted`));
+  showGame();
 
   function hideGame() {
     board.hide();
@@ -32,9 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showGame() {
     board.show();
-    chat.show();
-    let deckManager = new DeckManager();
-    deckManager.show();
+//    chat.show();
+//    let deckManager = new DeckManager();
+//    deckManager.show();
     // Inserimento elementi di esempio (Carte di Gioco) posizionati in modo assoluto
     const content = board.getContentContainer();
 
@@ -69,10 +70,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Gestione evento login tramite il componente LoginForm
-  login.onLogin((peerName) => {
-    login.hide();
-    socket.bindPeer(peerName);
-  });
+//  login.onLogin((peerName) => {
+//    login.hide();
+//    socket.bindPeer(peerName);
+//  });
 
   chat.addEventListener('adduser', (evt) => {
     socket.connectToPeer(evt.detail);
@@ -158,6 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Mostra il login all'avvio
-  login.show();
+//  login.show();
 
 });

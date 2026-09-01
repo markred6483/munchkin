@@ -1,0 +1,14 @@
+/* TODO move here BoardPieces and context menu styles from board.css */
+/* TODO define other styles useful for BoardPieces and context menu */
+/*
+Sei uno sviluppatore front-end esperto di programmazione e design grafico.
+Modifica i file allegati per:
+- Risolvere i "TODO" in piece.js
+- Spostare alcune implementazioni attualmente in board.js e board.css in piece.js e piece.css. In particolare:
+-- logiche e stili del context menù
+-- logiche e stili dei bottoni del context menù
+-- logiche delle azioni scaturite dai bottoni del context menù
+-- logiche di eventi su BoardObjects
+- Fornire esempi pratici del funzionamento delle nuove implementazioni in main.js
+Gli stili utili a piece.js devono tendenzialmente stare dentro a un nuovo file piece.css.
+*/
