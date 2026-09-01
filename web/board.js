@@ -562,6 +562,8 @@ export class GameBoard {
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
+      scrollX: this.viewportEl.scrollLeft,
+      scrollY: this.viewportEl.scrollTop,
       initialLeft,
       initialTop
     };
@@ -574,11 +576,11 @@ export class GameBoard {
   _handleDragging(e) {
     if (!this.activeDragState) return;
 
-    const { el, startX, startY, initialLeft, initialTop } = this.activeDragState;
+    const { el, startX, startY, scrollX, scrollY, initialLeft, initialTop } = this.activeDragState;
 
     // Delta di spostamento corretto in base allo zoom del tavolo
-    const deltaX = (e.clientX - startX) / this.currentScale;
-    const deltaY = (e.clientY - startY) / this.currentScale;
+    const deltaX = (e.clientX - startX - scrollX + this.viewportEl.scrollLeft) / this.currentScale;
+    const deltaY = (e.clientY - startY - scrollY + this.viewportEl.scrollTop) / this.currentScale;
 
     let targetLeft = initialLeft + deltaX;
     let targetTop = initialTop + deltaY;
