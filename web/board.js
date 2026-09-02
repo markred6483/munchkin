@@ -56,13 +56,11 @@ export class GameBoard {
     // Tracciamento posizione del mouse per zoom da tastiera "Toward Cursor"
     this.currentMousePos = null;
 
-    // Gestione Selezione, Menù Contestuale e Dragging Oggetti
+    // Gestione Selezione e Menù Contestuale
     this.selectedObject = null;
     this.contextMenuEl = null;
-    this.isDraggingMode = false;
-    this.activeDragState = null;
     this.eventListeners = {
-      delete: [],
+      remove: [],
       move: []
     };
 
@@ -80,6 +78,7 @@ export class GameBoard {
     // Event Listeners
     this._bindEvents();
     this.container.style.display = 'none';
+    this._boardInterface = new GameBoardInterface(this);
   }
 
   /**
@@ -407,34 +406,38 @@ export class GameBoard {
       }
     }, { passive: false });
 
-    // Gestione Selezione Oggetti, Deselezione e Trascinamento (PC e Touch)
-    this.contentEl.addEventListener('pointerdown', (e) => {
-      const targetObj = e.target.closest('.board-object');
-      if (targetObj) {
-        e.stopPropagation();
-        this._selectObject(targetObj);
+    // Gestione Selezione e Deselezione Oggetti (PC e Touch)
 
-        if (this.isDraggingMode) {
-          this._startDragging(targetObj, e);
-        }
-      } else {
-        if (!e.target.closest('.board-context-menu')) {
-          this._deselectObject();
-        }
-      }
+    this.contentEl.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.board-context-menu'))
+        return;
+      this._forwardRecalculatedPointerEvent(e);
     });
 
     window.addEventListener('pointermove', (e) => {
-      if (this.activeDragState) {
-        this._handleDragging(e);
-      }
+      this._forwardRecalculatedPointerEvent(e);
     });
 
     window.addEventListener('pointerup', (e) => {
-      if (this.activeDragState) {
-        this._stopDragging(e);
+      this._forwardRecalculatedPointerEvent(e);
+    });
+  }
+
+  _forwardRecalculatedPointerEvent(e) {
+    const target = e.target.closest('.board-piece');
+    // TODO make this more efficient
+    const boundingClientRect = this.contentEl.getBoundingClientRect();
+    const event = new CustomEvent('board-' + e.type, {
+      detail: {
+        target: target,
+        x: (e.clientX - boundingClientRect.left) / this.currentScale,
+        y: (e.clientY - boundingClientRect.top) / this.currentScale,
       }
     });
+    if (this.selectedObject)
+        this.selectedObject.dispatchEvent(event); // selected object captures events
+    if (target)
+        target.dispatchEvent(event);
   }
 
   /**
@@ -443,11 +446,8 @@ export class GameBoard {
    */
   _selectObject(el) {
     if (this.selectedObject === el) return;
-    this._deselectObject();
-
     this.selectedObject = el;
-    this.selectedObject.classList.add('board-object--selected');
-    this._createContextMenu(el);
+    this.selectedObject.classList.add('board-piece--selected');
   }
 
   /**
@@ -456,10 +456,9 @@ export class GameBoard {
    */
   _deselectObject() {
     if (this.selectedObject) {
-      this.selectedObject.classList.remove('board-object--selected');
+      this.selectedObject.classList.remove('board-piece--selected');
       this.selectedObject = null;
     }
-    this.isDraggingMode = false;
     this._removeContextMenu();
   }
 
@@ -467,55 +466,11 @@ export class GameBoard {
    * Crea e posiziona il menù contestuale sopra l'oggetto in un layer non soggetto a zoom (.board-root).
    * @private
    */
-  _createContextMenu(el) {
+  _createContextMenu(contextMenuEl) {
     this._removeContextMenu();
-
-    const menu = document.createElement('div');
-    menu.className = 'board-context-menu';
-
-    // Bottone Dettaglio (TODO)
-    const btnDetails = document.createElement('button');
-    btnDetails.className = 'board-context-menu__button';
-    btnDetails.title = 'Details';
-    btnDetails.innerHTML = '🔍';
-    btnDetails.addEventListener('click', (e) => {
-      e.stopPropagation();
-      // TODO: implementare versione ingrandita dell'oggetto
-      this._deselectObject();
-    });
-
-    // Bottone Sposta
-    const btnMove = document.createElement('button');
-    btnMove.className = 'board-context-menu__button';
-    btnMove.title = 'Move object';
-    btnMove.innerHTML = '✋';
-    btnMove.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.isDraggingMode = true;
-      btnMove.classList.add('board-context-menu__button--active');
-    });
-
-    menu.appendChild(btnDetails);
-
-    // Bottone Elimina (visibile solo se presente la classe .removable-board-object)
-    if (el.classList.contains('removable-board-object')) {
-      const btnDelete = document.createElement('button');
-      btnDelete.className = 'board-context-menu__button board-context-menu__button--delete';
-      btnDelete.title = 'Delete object';
-      btnDelete.innerHTML = '🗑️';
-      btnDelete.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.removeBoardObject(el);
-      });
-      menu.appendChild(btnDelete);
-    }
-
-    menu.appendChild(btnMove);
-
+    this.contextMenuEl = contextMenuEl
     // Append a .board-root per prevenire lo zoom del menù
-    this.container.appendChild(menu);
-    this.contextMenuEl = menu;
-
+    this.container.appendChild(contextMenuEl);
     this._updateContextMenuPosition();
   }
 
@@ -548,88 +503,6 @@ export class GameBoard {
     }
   }
 
-  /**
-   * Avvia il trascinamento dell'oggetto tenendo conto della scala e dei limiti.
-   * @private
-   */
-  _startDragging(el, e) {
-    el.setPointerCapture(e.pointerId);
-    const initialLeft = parseFloat(el.style.left) || 0;
-    const initialTop = parseFloat(el.style.top) || 0;
-
-    this.activeDragState = {
-      el,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      scrollX: this.viewportEl.scrollLeft,
-      scrollY: this.viewportEl.scrollTop,
-      initialLeft,
-      initialTop
-    };
-  }
-
-  /**
-   * Gestisce lo spostamento fluido mantenendo l'oggetto nei confini di .board-content.
-   * @private
-   */
-  _handleDragging(e) {
-    if (!this.activeDragState) return;
-
-    const { el, startX, startY, scrollX, scrollY, initialLeft, initialTop } = this.activeDragState;
-
-    // Delta di spostamento corretto in base allo zoom del tavolo
-    const deltaX = (e.clientX - startX - scrollX + this.viewportEl.scrollLeft) / this.currentScale;
-    const deltaY = (e.clientY - startY - scrollY + this.viewportEl.scrollTop) / this.currentScale;
-
-    let targetLeft = initialLeft + deltaX;
-    let targetTop = initialTop + deltaY;
-
-    // Vincolo dei confini del tavolo (.board-content)
-    const objWidth = el.offsetWidth;
-    const objHeight = el.offsetHeight;
-
-    targetLeft = Math.max(0, Math.min(this.baseWidth - objWidth, targetLeft));
-    targetTop = Math.max(0, Math.min(this.baseHeight - objHeight, targetTop));
-
-    el.style.left = `${targetLeft}px`;
-    el.style.top = `${targetTop}px`;
-
-    // Aggiorna la posizione visiva del menù contestuale fisso
-    this._updateContextMenuPosition();
-  }
-
-  /**
-   * Termina il trascinamento, notifica gli ascoltatori dell'evento move e chiude la selezione.
-   * @private
-   */
-  _stopDragging(e) {
-    if (!this.activeDragState) return;
-
-    const { el, pointerId } = this.activeDragState;
-    try {
-      el.releasePointerCapture(pointerId);
-    } catch (err) {}
-
-    const x = parseFloat(el.style.left) || 0;
-    const y = parseFloat(el.style.top) || 0;
-
-    this._triggerEvent('move', { el, x, y });
-
-    this.activeDragState = null;
-    this._deselectObject();
-  }
-
-  /**
-   * Scatena i callback registrati agli eventi di sistema.
-   * @private
-   */
-  _triggerEvent(eventName, data) {
-    if (this.eventListeners[eventName]) {
-      this.eventListeners[eventName].forEach(cb => cb(data));
-    }
-  }
-
   // --- METODI PUBBLICI ---
 
   /**
@@ -638,61 +511,8 @@ export class GameBoard {
    * @param {Function} callback
    */
   on(eventName, callback) {
-    if (this.eventListeners[eventName] && typeof callback === 'function') {
+    if (this.eventListeners[eventName] && typeof callback === 'function')
       this.eventListeners[eventName].push(callback);
-    }
-  }
-
-  /**
-   * Elimina un oggetto dal tavolo e notifica gli ascoltatori.
-   * @param {string|HTMLElement} target - ID o elemento DOM dell'oggetto.
-   */
-  removeBoardObject(target) {
-    const el = typeof target === 'string' ? document.getElementById(target) : target;
-    if (!el) return;
-
-    if (!el.classList.contains('removable-board-object')) {
-      throw new Error("GameBoard: Impossibile eliminare un oggetto privo della classe '.removable-board-object'.");
-    }
-
-    this._deselectObject();
-    el.remove();
-
-    this._triggerEvent('remove', { el });
-  }
-
-  /**
-   * Sposta un oggetto programmaticamente con animazione fluida.
-   * @param {string|HTMLElement} target - ID o elemento DOM dell'oggetto.
-   * @param {number} x - Nuova posizione coordinata X.
-   * @param {number} y - Nuova posizione coordinata Y.
-   */
-  moveBoardObject(target, x, y) {
-    const el = typeof target === 'string' ? document.getElementById(target) : target;
-    if (!el) {
-      throw new Error("GameBoard: Oggetto specificato per lo spostamento non trovato.");
-    }
-
-    const objWidth = el.offsetWidth;
-    const objHeight = el.offsetHeight;
-
-    // Controllo dei limiti di .board-content
-    if (x < 0 || y < 0 || (x + objWidth) > this.baseWidth || (y + objHeight) > this.baseHeight) {
-      throw new Error("GameBoard: Impossibile spostare l'oggetto fuori dai confini del tavolo.");
-    }
-
-    el.classList.add('board-object--smooth-move');
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
-
-    // Notifica l'evento
-    this._triggerEvent('move', { el, x, y });
-
-    setTimeout(() => {
-      el.classList.remove('board-object--smooth-move');
-    }, 300);
-
-    this._deselectObject();
   }
 
   /**
@@ -735,20 +555,77 @@ export class GameBoard {
     this.viewportEl.scrollTop = Math.max(0, (totalHeight - viewportHeight) / 2);
   }
 
-  /**
-   * Restituisce il layer interno dove appendere gli elementi di gioco (es. carte).
-   * @returns {HTMLElement}
-   */
-  getContentContainer() {
-    return this.contentEl;
-  }
-
   show() {
     this.container.style.display = 'block';
   }
 
   hide() {
     this.container.style.display = 'none';
+  }
+
+  placePiece(piece) {
+    this.contentEl.appendChild(piece.view);
+    piece.boardInterface = this._boardInterface;
+  }
+
+  findPiece(pieceId) {
+    // TODO
+  }
+
+}
+
+class GameBoardInterface {
+
+  constructor(board) {
+    this._getWidth = () => board.baseWidth;
+    this._getHeight = () => board.baseHeight;
+    this._select = (piece) => {
+      board._selectObject(piece.view);
+    }
+    this._deselect = (piece) => {
+      board._deselectObject();
+    }
+    this._createContextMenu = (piece) => {
+      board._createContextMenu(piece.contextMenu);
+    }
+    this._updateContextMenu = (piece) => {
+      board._updateContextMenuPosition();
+    }
+    this._removeContextMenu = (piece) => {
+      board._removeContextMenu();
+    }
+  }
+
+  get width() {
+    return this._getWidth();
+  }
+
+  get height() {
+    return this._getHeight();
+  }
+
+  dispatchEvent(e) {
+    // TODO
+  }
+
+  select(piece) {
+    this._select(piece);
+  }
+
+  deselect(piece) {
+    this._deselect(piece);
+  }
+
+  createContextMenu(piece) {
+    this._createContextMenu(piece);
+  }
+
+  updateContextMenu(piece) {
+    this._updateContextMenu(piece);
+  }
+
+  removeContextMenu(piece) {
+    this._removeContextMenu(piece);
   }
 
 }

@@ -2,10 +2,9 @@ import { P2PSocket } from './p2p.js';
 import { P2PRandom } from './p2p_random.js';
 import { ChatWidget } from './chat.js';
 import { GameBoard } from './board.js';
+import { BoardPiece } from './piece.js'; // TODO should not import this
 import { LoginForm } from './login.js';
 import { DeckManager } from './deck.js';
-
-alert("Version 0.0.2");
 
 export var p2pRandom;
 
@@ -23,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const socket = new P2PSocket();
 
   board.on('move', e => console.log(`object ${e.el.id} moved to ${e.x};${e.y}`));
-  board.on('remove', e => console.log(`object ${e.el.id} deleted`));
+  board.on('remove', e => console.log(`object ${e.el.id} removed`));
   showGame();
 
   function hideGame() {
@@ -37,36 +36,32 @@ document.addEventListener('DOMContentLoaded', () => {
 //    let deckManager = new DeckManager();
 //    deckManager.show();
     // Inserimento elementi di esempio (Carte di Gioco) posizionati in modo assoluto
-    const content = board.getContentContainer();
 
-    const card1 = document.createElement('div');
-    card1.id = 'card-center';
-    card1.className = 'game-card board-object removable-board-object';
-    card1.style.left = '2400px';
-    card1.style.top = '2375px';
-    card1.innerHTML = `
+    let card1 = new BoardPiece();
+    board.placePiece(card1);
+    card1.view.id = 'card-center';
+    card1.view.className = 'game-card board-piece';
+    card1.view.style.left = '2410px';
+    card1.view.style.top = '2375px';
+    card1.view.innerHTML = `
       <div class="game-card__title">Carta Centro</div>
-      <div class="game-card__body">Coordinate: (2400, 2375)</div>
+      <div class="game-card__body">Coordinate: (2410, 2375)</div>
     `;
 
-    const card2 = document.createElement('div');
-    card2.id = 'card-spell';
-    card2.className = 'game-card board-object';
-    card2.style.left = '2620px';
-    card2.style.top = '2375px';
-    card2.style.background = 'linear-gradient(135deg, #ec4899, #d946ef)';
-    card2.innerHTML = `
+    let card2 = new BoardPiece();
+    board.placePiece(card2);
+    card2.view.id = 'card-spell';
+    card2.view.className = 'game-card board-piece';
+    card2.view.style.left = '2620px';
+    card2.view.style.top = '2375px';
+    card2.view.style.background = 'linear-gradient(135deg, #ec4899, #d946ef)';
+    card2.view.innerHTML = `
       <div class="game-card__title">Carta Incantesimo</div>
       <div class="game-card__body">Coordinate: (2620, 2375)</div>
     `;
 
-    content.appendChild(card1);
-    content.appendChild(card2);
-
-    setTimeout(() => board.removeBoardObject('card-center'), 500);
-    setTimeout(() => board.moveBoardObject('card-spell', 2000, 2000), 1000);
-    setTimeout(() => board.moveBoardObject('card-center', 1000, 1000), /*causes exception*/ 1500);
-    setTimeout(() => board.removeBoardObject('card-spell'), /*causes exception*/ 2000);
+//    setTimeout(() => card1.destroy(), 500);
+    setTimeout(() => card2.moveTo(2000, 2000), 1000);
   }
 
   // Gestione evento login tramite il componente LoginForm

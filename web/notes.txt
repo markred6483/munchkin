@@ -4,7 +4,7 @@ issues:
 - il menu dello zoom è un po' in mezzo alle palle, ci dovrebbe essere la possibilità di nasconderlo/mostrarlo
 - per sbaglio si seleziona il testo nella board
 - la chat non è esattamente armonica con il resto della pagina
-- GameBoard.addBoardObject
+- GameBoard.addBoardPiece
 
 TODO high privilege actions.
 I have a p2p web application.
