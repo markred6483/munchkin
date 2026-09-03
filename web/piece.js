@@ -107,8 +107,8 @@ export class BoardPiece {
     destroy() {
         this._view.remove();
         this._board.removeContextMenu(this);
-        // TODO? free up resources
         this._board.notify(this, 'remove');
+        this._board = null;
     }
 
     get contextMenu() {
@@ -159,9 +159,9 @@ class BoardCard extends BoardPiece {
         super(args);
         /* TODO
             args.front can be:
-              - a string -> img.src = args.front -> this.front = img
-              - an HTML element
-              - null -> default simple placeholder
+              - a string -> img.src = args.front -> front = img
+              - an HTML element -> front = args.front
+              - null -> front = simple default placeholder
             args.back: same logic as front (slightly different placeholder though)
         */
     }
@@ -171,25 +171,30 @@ class BoardCard extends BoardPiece {
         // TODO free up resources
     }
 
-    get view() {
-        const v = super._view;
-        /* TODO
-            + front
-            + back
-        */
-        return v;
-    }
-
     get contextMenu() {
         const cm = super.contextMenu;
-        /* TODO
-            + button to "flip" this card
-        */
+        const flipBtn = BoardPiece.createContextMenuItem({
+            icon: '🔄', tooltip: 'Flip',
+            action: () => this.flip()
+        });
+        // TODO add flipBtn to cm
         return cm;
     }
 
-    set faceUp(faceUp) { // true / false
-        // TODO animation if it's to be flipped
+    flip() {
+        this.isFaceUp = !this.isFaceUp;
+        this._board.notify(this, 'flip');
+    }
+
+    get isFaceUp() {
+        return this._isFaceUp;
+    }
+
+    set isFaceUp(isFaceUp) {
+        if (this._isFaceUp === isFaceUp) return;
+        this._isFaceUp = isFaceUp;
+        // TODO animation
+        this._view.classList.toggle('board-card--flipped', !this._isFaceUp);
     }
 
 }
