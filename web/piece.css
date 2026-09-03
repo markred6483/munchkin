@@ -10,8 +10,12 @@
   min-height: 20px;
 }
 
+.board-piece--draggable {
+  cursor: grab;
+}
+
 .board-piece--dragging {
-  /* TODO cursor: */
+  cursor: grabbing;
 }
 
 .board-piece:hover {

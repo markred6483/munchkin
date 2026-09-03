@@ -21,8 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const chat = new ChatWidget();
   const socket = new P2PSocket();
 
-  board.on('move', e => console.log(`object ${e.el.id} moved to ${e.x};${e.y}`));
-  board.on('remove', e => console.log(`object ${e.el.id} removed`));
+  board.on('select', e => console.log(`piece ${e.piece.id} selected`));
+  board.on('deselect', e => console.log(`piece ${e.piece.id} deselected`));
+  board.on('detail', e => console.log(`piece ${e.piece.id} details modal`));
+  board.on('drag', e => console.log(`piece ${e.piece.id} dragged to ${e.piece.left};${e.piece.top}`));
+  board.on('remove', e => console.log(`piece ${e.piece.id} removed`));
   showGame();
 
   function hideGame() {
@@ -60,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="game-card__body">Coordinate: (2620, 2375)</div>
     `;
 
-//    setTimeout(() => card1.destroy(), 500);
     setTimeout(() => card2.moveTo(2000, 2000), 1000);
   }
 

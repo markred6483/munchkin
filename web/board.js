@@ -57,12 +57,9 @@ export class GameBoard {
     this.currentMousePos = null;
 
     // Gestione Selezione e Menù Contestuale
-    this.selectedObject = null;
+    this.selectedPiece = null;
     this.contextMenuEl = null;
-    this.eventListeners = {
-      remove: [],
-      move: []
-    };
+    this.eventListeners = {};
 
     // Inizializzazione architettura
     this._initDOM();
@@ -279,7 +276,7 @@ export class GameBoard {
     }
 
     // Mantiene la posizione aggiornata del menù contestuale non scalato
-    if (this.selectedObject) {
+    if (this.selectedPiece) {
       this._updateContextMenuPosition();
     }
 
@@ -301,7 +298,7 @@ export class GameBoard {
     });
 
     this.viewportEl.addEventListener('scroll', () => {
-      if (this.selectedObject) {
+      if (this.selectedPiece) {
         this._updateContextMenuPosition();
       }
     });
@@ -425,7 +422,10 @@ export class GameBoard {
 
   _forwardRecalculatedPointerEvent(e) {
     const target = e.target.closest('.board-piece');
-    // TODO make this more efficient
+    if (!target && !this.selectedPiece) return;
+    /* TODO make this more efficient because getBoundingClientRect() is expensive,
+        also, maybe there's nobody listening to the board-pointer* event
+    */
     const boundingClientRect = this.contentEl.getBoundingClientRect();
     const event = new CustomEvent('board-' + e.type, {
       detail: {
@@ -434,8 +434,8 @@ export class GameBoard {
         y: (e.clientY - boundingClientRect.top) / this.currentScale,
       }
     });
-    if (this.selectedObject)
-        this.selectedObject.dispatchEvent(event); // selected object captures events
+    if (this.selectedPiece)
+        this.selectedPiece.dispatchEvent(event); // selected object captures events
     if (target)
         target.dispatchEvent(event);
   }
@@ -444,20 +444,19 @@ export class GameBoard {
    * Seleziona un oggetto sul tavolo e mostra il menù contestuale.
    * @private
    */
-  _selectObject(el) {
-    if (this.selectedObject === el) return;
-    this.selectedObject = el;
-    this.selectedObject.classList.add('board-piece--selected');
+  _selectPiece(el) {
+    if (this.selectedPiece === el) return;
+    this.selectedPiece = el;
   }
 
   /**
    * Deseleziona l'oggetto corrente e rimuove il menù contestuale.
    * @private
    */
-  _deselectObject() {
-    if (this.selectedObject) {
-      this.selectedObject.classList.remove('board-piece--selected');
-      this.selectedObject = null;
+  _deselectPiece() {
+    if (this.selectedPiece) {
+      this.selectedPiece.classList.remove('board-piece--selected');
+      this.selectedPiece = null;
     }
     this._removeContextMenu();
   }
@@ -479,9 +478,9 @@ export class GameBoard {
    * @private
    */
   _updateContextMenuPosition() {
-    if (!this.contextMenuEl || !this.selectedObject) return;
+    if (!this.contextMenuEl || !this.selectedPiece) return;
 
-    const el = this.selectedObject;
+    const el = this.selectedPiece;
     const objRect = el.getBoundingClientRect();
     const rootRect = this.container.getBoundingClientRect();
 
@@ -503,6 +502,11 @@ export class GameBoard {
     }
   }
 
+  _triggerEvent(eventName, data) {
+    if (this.eventListeners[eventName])
+      this.eventListeners[eventName].forEach(cb => cb(data));
+  }
+
   // --- METODI PUBBLICI ---
 
   /**
@@ -511,8 +515,11 @@ export class GameBoard {
    * @param {Function} callback
    */
   on(eventName, callback) {
-    if (this.eventListeners[eventName] && typeof callback === 'function')
-      this.eventListeners[eventName].push(callback);
+    if (typeof callback !== 'function')
+        throw new Error('GameBoard: Callback must be a function.');
+    if (!this.eventListeners[eventName])
+        this.eventListeners[eventName] = [];
+    this.eventListeners[eventName].push(callback);
   }
 
   /**
@@ -564,12 +571,19 @@ export class GameBoard {
   }
 
   placePiece(piece) {
+    if (this.contentEl.querySelector('#' + piece.id))
+      throw new Error('GameBoard: Piece already exists. ID: ' + piece.id);
+    // TODO save mapping piece.id -> BoardPiece. But what to do when a piece is removed? I'm worried about resource leaks
     this.contentEl.appendChild(piece.view);
     piece.boardInterface = this._boardInterface;
   }
 
+  /* never use this from within GameBoard itself */
   findPiece(pieceId) {
-    // TODO
+    const piece = null; // TODO map pieceId -> BoardPiece
+    if (!piece)
+      throw new Error('GameBoard: Piece not found. ID: ' + pieceId);
+    return piece;
   }
 
 }
@@ -580,10 +594,13 @@ class GameBoardInterface {
     this._getWidth = () => board.baseWidth;
     this._getHeight = () => board.baseHeight;
     this._select = (piece) => {
-      board._selectObject(piece.view);
+      board._selectPiece(piece.view);
     }
     this._deselect = (piece) => {
-      board._deselectObject();
+      board._deselectPiece();
+    }
+    this._notify = (piece, eventName) => {
+      board._triggerEvent(eventName, { piece });
     }
     this._createContextMenu = (piece) => {
       board._createContextMenu(piece.contextMenu);
@@ -604,8 +621,8 @@ class GameBoardInterface {
     return this._getHeight();
   }
 
-  dispatchEvent(e) {
-    // TODO
+  notify(piece, eventName) {
+    return this._notify(piece, eventName);
   }
 
   select(piece) {
