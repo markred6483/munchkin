@@ -107,6 +107,7 @@ export class BoardPiece {
     destroy() {
         this._view.remove();
         this._board.removeContextMenu(this);
+        this._board.deselect(this);
         this._board.notify(this, 'remove');
         this._board = null;
     }
@@ -142,7 +143,7 @@ export class BoardPiece {
         if (tooltip)
             btn.title = tooltip;
         if (additionalClass)
-            btn.classList.add('board-context-menu__button--remove');
+            btn.classList.add(additionalClass);
         btn.innerText = icon;
         btn.addEventListener('click', (e) => {
             e.stopPropagation();

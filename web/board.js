@@ -454,10 +454,7 @@ export class GameBoard {
    * @private
    */
   _deselectPiece() {
-    if (this.selectedPiece) {
-      this.selectedPiece.classList.remove('board-piece--selected');
-      this.selectedPiece = null;
-    }
+    this.selectedPiece = null;
     this._removeContextMenu();
   }
 
