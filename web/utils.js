@@ -10,6 +10,7 @@ export function getDomId(proposedId) {
     throw new Error("Invalid DOM ID: " + proposedId);
   if (proposedId.startsWith(idPrefix))
     throw new Error("Proposed DOM ID cannot start with the reserved prefix: " + idPrefix);
+  return proposedId;
 }
 
 export function getDomIdWithPrefix(idPrefix) {
@@ -23,7 +24,7 @@ function generateDomId() {
 }
 
 function isValidDomId(id) {
-    return typeof id === 'string' && null && /^[A-Za-z0-9\-_]+$/.test(id);
+    return  id && (typeof id === 'string') && /^[A-Za-z0-9\-_]+$/.test(id);
 }
 
 function randomBase64URL() {
