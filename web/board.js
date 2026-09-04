@@ -157,6 +157,7 @@ export class GameBoard {
     const scaleX = availableWidth / this.baseWidth;
     const scaleY = availableHeight / this.baseHeight;
 
+    // Mantiene la board interamente visibile considerando l'asse più vincolante
     this.minScale = Math.min(scaleX, scaleY);
     this.maxScale = 1.0; // Il livello 5 è sempre al 100% della dimensione nativa
 

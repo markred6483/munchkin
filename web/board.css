@@ -23,7 +23,7 @@
   height: 100%;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-
+  display: grid; /* CSS permette a margin: auto sul figlio di centrare sia in X che in Y */
   scrollbar-color: #4a4a5a #121214;
   scrollbar-width: thin;
 }
@@ -51,7 +51,7 @@
 .board-canvas {
   position: relative;
   box-sizing: content-box;
-  margin: auto;
+  margin: auto; /* all'interno di un contenitore, grid centra sia orizzontalmente che verticalmente */
   pointer-events: auto;
 }
 
