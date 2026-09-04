@@ -154,22 +154,52 @@ export class BoardPiece {
 
 }
 
-class BoardCard extends BoardPiece {
+export class BoardCard extends BoardPiece {
 
     constructor(args = {}) {
         super(args);
-        /* TODO
-            args.front can be:
-              - a string -> img.src = args.front -> front = img
-              - an HTML element -> front = args.front
-              - null -> front = simple default placeholder
-            args.back: same logic as front (slightly different placeholder though)
-        */
+        this._view.classList.add('board-card');
+        this._isFaceUp = true;
+
+        this._innerElement = document.createElement('div');
+        this._innerElement.className = 'board-card__inner';
+
+        this._frontElement = this._createCardFace(args.front, 'front');
+        this._backElement = this._createCardFace(args.back, 'back');
+
+        this._innerElement.appendChild(this._frontElement);
+        this._innerElement.appendChild(this._backElement);
+        this._view.appendChild(this._innerElement);
+    }
+
+    _createCardFace(content, faceType) {
+        const face = document.createElement('div');
+        face.className = `board-card__face board-card__face--${faceType}`;
+
+        if (typeof content === 'string') {
+            const img = document.createElement('img');
+            img.src = content;
+            img.className = 'board-card__image';
+            face.appendChild(img);
+        } else if (content instanceof HTMLElement) {
+            face.appendChild(content);
+        } else {
+            const placeholder = document.createElement('div');
+            placeholder.className = `board-card__placeholder board-card__placeholder--${faceType}`;
+            placeholder.innerText = faceType === 'front' ? 'Card Front' : 'Card Back';
+            face.appendChild(placeholder);
+        }
+
+        return face;
     }
 
     destroy() {
+        if (this._frontElement) this._frontElement.innerHTML = '';
+        if (this._backElement) this._backElement.innerHTML = '';
+        this._frontElement = null;
+        this._backElement = null;
+        this._innerElement = null;
         super.destroy();
-        // TODO free up resources
     }
 
     get contextMenu() {
@@ -178,13 +208,15 @@ class BoardCard extends BoardPiece {
             icon: '🔄', tooltip: 'Flip',
             action: () => this.flip()
         });
-        // TODO add flipBtn to cm
+        cm.appendChild(flipBtn);
         return cm;
     }
 
     flip() {
         this.isFaceUp = !this.isFaceUp;
-        this._board.notify(this, 'flip');
+        if (this._board) {
+            this._board.notify(this, 'flip');
+        }
     }
 
     get isFaceUp() {
@@ -194,7 +226,6 @@ class BoardCard extends BoardPiece {
     set isFaceUp(isFaceUp) {
         if (this._isFaceUp === isFaceUp) return;
         this._isFaceUp = isFaceUp;
-        // TODO animation
         this._view.classList.toggle('board-card--flipped', !this._isFaceUp);
     }
 

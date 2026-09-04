@@ -1,7 +1,6 @@
-
 /* Oggetti Generici sul Tavolo e Carte di Gioco */
 .board-piece {
-  display: none;
+  /*display: none;*/
   box-sizing: border-box;
   cursor: pointer;
   transition: box-shadow 0.2s, transform 0.2s;
@@ -55,6 +54,64 @@
 .game-card__body {
   font-size: 12px;
   opacity: 0.8;
+}
+
+/* Card Flipping Styles */
+.board-card {
+  perspective: 1000px;
+  width: 180px;
+  height: 250px;
+  position: absolute;
+}
+
+.board-card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 2.0s;
+  transform-style: preserve-3d;
+}
+
+.board-card--flipped .board-card__inner {
+  transform: rotateY(180deg);
+}
+
+.board-card__face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.board-card__face--front {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+}
+
+.board-card__face--back {
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  color: white;
+  transform: rotateY(180deg);
+}
+
+.board-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.board-card__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
 }
 
 /* Menù Contestuale Oggetto (Non soggetto a zoom) */

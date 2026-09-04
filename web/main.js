@@ -2,7 +2,7 @@ import { P2PSocket } from './p2p.js';
 import { P2PRandom } from './p2p_random.js';
 import { ChatWidget } from './chat.js';
 import { GameBoard } from './board.js';
-import { BoardPiece } from './piece.js'; // TODO should not import this
+import { BoardCard } from './piece.js';
 import { LoginForm } from './login.js';
 import { DeckManager } from './deck.js';
 
@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   board.on('detail', e => console.log(`piece ${e.piece.id} details modal`));
   board.on('drag', e => console.log(`piece ${e.piece.id} dragged to ${e.piece.left};${e.piece.top}`));
   board.on('remove', e => console.log(`piece ${e.piece.id} removed`));
+  board.on('flip', e => console.log(`piece ${e.piece.id} flipped faceUp: ${e.piece.isFaceUp}`));
   showGame();
 
   function hideGame() {
@@ -38,32 +39,36 @@ document.addEventListener('DOMContentLoaded', () => {
 //    chat.show();
 //    let deckManager = new DeckManager();
 //    deckManager.show();
-    // Inserimento elementi di esempio (Carte di Gioco) posizionati in modo assoluto
 
-    let card1 = new BoardPiece();
-    board.placePiece(card1);
-    card1.view.id = 'card-center';
-    card1.view.className = 'game-card board-piece';
-    card1.view.style.left = '2410px';
-    card1.view.style.top = '2375px';
-    card1.view.innerHTML = `
+    // Example 1: BoardCard with custom HTML element content
+    const cardContent = document.createElement('div');
+    cardContent.innerHTML = `
       <div class="game-card__title">Carta Centro</div>
       <div class="game-card__body">Coordinate: (2410, 2375)</div>
     `;
+    let card1 = new BoardCard({
+      front: cardContent
+    });
+    board.placePiece(card1);
+    card1.left = 2410;
+    card1.top = 2375;
 
-    let card2 = new BoardPiece();
-    board.placePiece(card2);
-    card2.view.id = 'card-spell';
-    card2.view.className = 'game-card board-piece';
-    card2.view.style.left = '2620px';
-    card2.view.style.top = '2375px';
-    card2.view.style.background = 'linear-gradient(135deg, #ec4899, #d946ef)';
-    card2.view.innerHTML = `
-      <div class="game-card__title">Carta Incantesimo</div>
-      <div class="game-card__body">Coordinate: (2620, 2375)</div>
-    `;
+    // Example 2: BoardCard with image URLs for front and back
+//    let card2 = new BoardCard({
+//      front: 'https://via.placeholder.com/180x250/6366f1/ffffff?text=Front',
+//      back: 'https://via.placeholder.com/180x250/312e81/ffffff?text=Back'
+//    });
+//    board.placePiece(card2);
+//    card2.left = 2620;
+//    card2.top = 2375;
 
-    setTimeout(() => card2.moveTo(2000, 2000), 1000);
+    // Example 3: BoardCard relying on default placeholders
+    let card3 = new BoardCard();
+    board.placePiece(card3);
+    card3.left = 2830;
+    card3.top = 2375;
+
+//    setTimeout(() => card2.moveTo(2000, 2000), 1000);
   }
 
   // Gestione evento login tramite il componente LoginForm
