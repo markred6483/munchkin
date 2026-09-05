@@ -176,7 +176,14 @@ export class BoardCard extends BoardPiece {
         const face = document.createElement('div');
         face.className = `board-card__face board-card__face--${faceType}`;
 
-        if (typeof content === 'string') {
+        if (content instanceof Blob) {
+            const img = document.createElement('img');
+            const objectUrl = URL.createObjectURL(content);
+            img.onload = () => URL.revokeObjectURL(objectUrl);
+            img.src = objectUrl;
+            img.className = 'board-card__image';
+            face.appendChild(img);
+        } else if (typeof content === 'string') {
             const img = document.createElement('img');
             img.src = content;
             img.className = 'board-card__image';

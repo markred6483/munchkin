@@ -5,6 +5,7 @@ import { GameBoard } from './board.js';
 import { BoardCard } from './piece.js';
 import { LoginForm } from './login.js';
 import { DeckManager } from './deck.js';
+import { DeckRepository } from './db.js';
 
 export var p2pRandom;
 
@@ -54,13 +55,17 @@ document.addEventListener('DOMContentLoaded', () => {
     card1.top = 2375;
 
     // Example 2: BoardCard with image URLs for front and back
-//    let card2 = new BoardCard({
-//      front: 'https://via.placeholder.com/180x250/6366f1/ffffff?text=Front',
-//      back: 'https://via.placeholder.com/180x250/312e81/ffffff?text=Back'
-//    });
-//    board.placePiece(card2);
-//    card2.left = 2620;
-//    card2.top = 2375;
+    const deckRepo = new DeckRepository();
+    async function loadCard2() {
+      let card2 = new BoardCard({
+        front: (await deckRepo.getResource("denara1.png")).blob,
+        back: (await deckRepo.getResource("spade1.png")).blob
+      });
+      board.placePiece(card2);
+      card2.left = 2620;
+      card2.top = 2375;
+    }
+    loadCard2();
 
     // Example 3: BoardCard relying on default placeholders
     let card3 = new BoardCard();

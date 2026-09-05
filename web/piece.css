@@ -103,6 +103,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none; /* Impedisce qualsiasi evento del mouse direttamente sull'immagine */
 }
 
 .board-card__placeholder {
